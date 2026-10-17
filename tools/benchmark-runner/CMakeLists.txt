@@ -1,0 +1,10 @@
+add_executable(ge_bench main.cpp)
+set_target_properties(ge_bench PROPERTIES OUTPUT_NAME ge-bench)
+target_link_libraries(ge_bench PRIVATE ge_engine)
+ge_enable_warnings(ge_bench)
+ge_enable_sanitizers(ge_bench)
+# Smoke test only: proves the tool runs. It asserts nothing about timing.
+if(GE_BUILD_TESTS)
+  add_test(NAME benchmark_smoke COMMAND ge_bench --frames 5 --warmup 1 --width 160 --height 100)
+  set_tests_properties(benchmark_smoke PROPERTIES LABELS benchmark)
+endif()

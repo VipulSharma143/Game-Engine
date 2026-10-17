@@ -1,0 +1,12 @@
+# ge_enable_sanitizers(<target>): -DGE_SANITIZE="address;undefined" (GCC/Clang only).
+function(ge_enable_sanitizers target)
+  if(NOT GE_SANITIZE)
+    return()
+  endif()
+  if(MSVC)
+    message(FATAL_ERROR "GE_SANITIZE is only supported with GCC/Clang")
+  endif()
+  string(REPLACE ";" "," _list "${GE_SANITIZE}")
+  target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fsanitize=${_list} -fno-omit-frame-pointer>)
+  target_link_options(${target} PUBLIC -fsanitize=${_list})
+endfunction()

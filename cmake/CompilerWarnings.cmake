@@ -1,0 +1,16 @@
+# ge_enable_warnings(<target>): consistent warnings across GCC, Clang and MSVC.
+# Applied to C++ sources only; NASM does not understand these flags.
+function(ge_enable_warnings target)
+  if(MSVC)
+    target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4 /permissive- /utf-8>)
+    target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
+    if(GE_WARNINGS_AS_ERRORS)
+      target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/WX>)
+    endif()
+  else()
+    target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wformat=2>)
+    if(GE_WARNINGS_AS_ERRORS)
+      target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Werror>)
+    endif()
+  endif()
+endfunction()

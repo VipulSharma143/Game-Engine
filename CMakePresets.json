@@ -1,0 +1,67 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug (Unix Makefiles)",
+      "inherits": "base",
+      "generator": "Unix Makefiles",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release (Unix Makefiles)",
+      "inherits": "base",
+      "generator": "Unix Makefiles",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "ninja-debug",
+      "displayName": "Debug (Ninja)",
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Release (Ninja)",
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "no-asm",
+      "displayName": "Release without assembly (Unix Makefiles)",
+      "inherits": "release",
+      "cacheVariables": { "GE_ASM": "OFF" }
+    },
+    {
+      "name": "asan",
+      "displayName": "Debug with ASan + UBSan (Unix Makefiles)",
+      "inherits": "debug",
+      "cacheVariables": { "GE_SANITIZE": "address;undefined" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "ninja-debug", "configurePreset": "ninja-debug" },
+    { "name": "ninja-release", "configurePreset": "ninja-release" },
+    { "name": "no-asm", "configurePreset": "no-asm" },
+    { "name": "asan", "configurePreset": "asan" }
+  ],
+  "testPresets": [
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "ninja-debug", "configurePreset": "ninja-debug", "output": { "outputOnFailure": true } },
+    { "name": "ninja-release", "configurePreset": "ninja-release", "output": { "outputOnFailure": true } },
+    { "name": "no-asm", "configurePreset": "no-asm", "output": { "outputOnFailure": true } },
+    { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true } }
+  ]
+}

@@ -1,0 +1,51 @@
+# NASM integration.
+#   GE_ASM=AUTO  use NASM when found on x86-64 Linux/Windows, else fall back to C++
+#   GE_ASM=ON    same, but fail configuration if NASM cannot be used
+#   GE_ASM=OFF   never assemble; the portable C++ fallback is used
+# Sets GE_ASM_STATUS and defines ge_link_assembly(<target>).
+set(GE_ASM_ENABLED FALSE)
+set(GE_ASM_STATUS "disabled (GE_ASM=OFF)")
+
+if(NOT GE_ASM STREQUAL "OFF")
+  set(_ge_asm_reason "")
+  if(NOT GE_IS_X86_64)
+    set(_ge_asm_reason "target processor '${CMAKE_SYSTEM_PROCESSOR}' is not x86-64")
+  elseif(NOT (GE_PLATFORM_NAME STREQUAL "linux" OR GE_PLATFORM_NAME STREQUAL "windows"))
+    set(_ge_asm_reason "no NASM sources for platform '${GE_PLATFORM_NAME}'")
+  else()
+    include(CheckLanguage)
+    check_language(ASM_NASM)
+    if(CMAKE_ASM_NASM_COMPILER)
+      enable_language(ASM_NASM)
+      set(GE_ASM_ENABLED TRUE)
+    else()
+      set(_ge_asm_reason "NASM not found (install 'nasm' or set -DCMAKE_ASM_NASM_COMPILER=...)")
+    endif()
+  endif()
+
+  if(GE_ASM_ENABLED)
+    set(GE_ASM_STATUS "enabled (${CMAKE_ASM_NASM_COMPILER})")
+  elseif(GE_ASM STREQUAL "ON")
+    message(FATAL_ERROR "GE_ASM=ON but assembly cannot be used: ${_ge_asm_reason}")
+  else()
+    set(GE_ASM_STATUS "disabled, using C++ fallback: ${_ge_asm_reason}")
+    message(STATUS "Assembly disabled: ${_ge_asm_reason}")
+  endif()
+endif()
+
+function(ge_link_assembly target)
+  if(NOT GE_ASM_ENABLED)
+    return()
+  endif()
+  set(_common "${PROJECT_SOURCE_DIR}/asm/x86_64/common")
+  if(GE_PLATFORM_NAME STREQUAL "windows")
+    set(_sources "${PROJECT_SOURCE_DIR}/asm/x86_64/windows/math.asm" "${_common}/pixels.asm")
+  else()
+    set(_sources "${_common}/math.asm" "${PROJECT_SOURCE_DIR}/asm/x86_64/linux/math.asm" "${_common}/pixels.asm")
+  endif()
+  target_sources(${target} PRIVATE ${_sources})
+  set_source_files_properties(${_sources} PROPERTIES LANGUAGE ASM_NASM)
+  # NASM needs the trailing slash on include directories.
+  set_source_files_properties("${_common}/pixels.asm" PROPERTIES COMPILE_OPTIONS "-I${_common}/")
+  target_compile_definitions(${target} PUBLIC GE_HAVE_ASM=1)
+endfunction()

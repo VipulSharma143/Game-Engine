@@ -1,0 +1,20 @@
+add_library(ge_test_support STATIC support/test_main.cpp)
+target_include_directories(ge_test_support PUBLIC support)
+ge_enable_warnings(ge_test_support)
+
+# ge_add_test(<name> <libs> <sources...>) -> executable + CTest entry
+function(ge_add_test name libs)
+  add_executable(${name} ${ARGN})
+  target_link_libraries(${name} PRIVATE ge_test_support ${libs})
+  ge_enable_warnings(${name})
+  ge_enable_sanitizers(${name})
+  add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+ge_add_test(unit_core ge_engine unit/CoreTests.cpp)
+ge_add_test(unit_renderer ge_engine unit/RendererTests.cpp)
+ge_add_test(unit_world ge_engine unit/WorldTests.cpp)
+ge_add_test(unit_player ge_game unit/PlayerTests.cpp)
+ge_add_test(platform_headless ge_engine platform/HeadlessTests.cpp)
+ge_add_test(assembly_equivalence ge_engine assembly/AssemblyEquivalenceTests.cpp)
+ge_add_test(integration_engine ge_game integration/EngineIntegrationTests.cpp)

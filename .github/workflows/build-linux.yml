@@ -1,0 +1,38 @@
+name: Linux
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.compiler }} ${{ matrix.build_type }} (asm=${{ matrix.asm }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # GCC 13 is the verified configuration: warnings are errors.
+          - { compiler: gcc, cxx: g++, build_type: Debug, asm: AUTO, werror: "ON" }
+          - { compiler: gcc, cxx: g++, build_type: Release, asm: AUTO, werror: "ON" }
+          - { compiler: gcc, cxx: g++, build_type: Release, asm: "OFF", werror: "ON" }
+          # Clang has not been verified locally yet: warnings are not errors here.
+          - { compiler: clang, cxx: clang++, build_type: Release, asm: AUTO, werror: "OFF" }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nasm cmake clang
+      - name: Configure
+        run: >
+          cmake -S . -B build -G "Unix Makefiles"
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DGE_ASM=${{ matrix.asm }}
+          -DGE_WARNINGS_AS_ERRORS=${{ matrix.werror }}
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Demo (headless)
+        run: ./build/ge-demo --frames 60
