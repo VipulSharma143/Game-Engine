@@ -7,7 +7,7 @@
 namespace game {
 
 void update_player(Player& player, const ge::InputState& input, const ge::GridMap& map, double dt) noexcept {
-    player.angle += ge::clamp(input.turn, -1.0, 1.0) * player.turn_speed * dt;
+    player.angle += ge::clamp(input.turn, -1.0, 1.0) * player.turn_speed * dt + input.look * player.mouse_sensitivity;
     if (player.angle > ge::kPi) player.angle -= 2.0 * ge::kPi;
     if (player.angle < -ge::kPi) player.angle += 2.0 * ge::kPi;
 

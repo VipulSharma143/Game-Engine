@@ -38,11 +38,14 @@ add_library(ge_engine STATIC
   engine/physics/Movement.cpp
   engine/platform/FrameDump.cpp
   engine/platform/HeadlessPlatform.cpp
+  engine/platform/PlatformFactory.cpp
   engine/platform/ScriptedInput.cpp
   engine/renderer/Camera.cpp
   engine/renderer/Framebuffer.cpp
   engine/renderer/Raycaster.cpp
   engine/renderer/Renderer.cpp
+  engine/renderer/SpriteRenderer.cpp
+  engine/renderer/TextRenderer.cpp
   engine/world/MotionBatch.cpp
   engine/world/World.cpp)
 add_library(ge::engine ALIAS ge_engine)
@@ -51,12 +54,15 @@ target_compile_features(ge_engine PUBLIC cxx_std_20)
 ge_enable_warnings(ge_engine)
 ge_enable_sanitizers(ge_engine)
 ge_link_assembly(ge_engine)
+ge_link_sdl(ge_engine)
 
 # ---- game (library + demo executable) ----------------------------------------
 add_library(ge_game STATIC
   game/src/DemoTour.cpp
   game/src/GameApplication.cpp
-  game/src/PlayerController.cpp)
+  game/src/Hud.cpp
+  game/src/PlayerController.cpp
+  game/src/WeaponSystem.cpp)
 add_library(ge::game ALIAS ge_game)
 target_include_directories(ge_game PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/game/include")
 target_link_libraries(ge_game PUBLIC ge_engine)
@@ -68,6 +74,11 @@ set_target_properties(ge_demo PROPERTIES OUTPUT_NAME ge-demo)
 target_link_libraries(ge_demo PRIVATE ge_game)
 ge_enable_warnings(ge_demo)
 ge_enable_sanitizers(ge_demo)
+if(WIN32 AND GE_SDL_ENABLED)
+  # Put SDL3.dll next to ge-demo.exe when SDL3 is a shared library.
+  add_custom_command(TARGET ge_demo POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                     $<TARGET_RUNTIME_DLLS:ge_demo> $<TARGET_FILE_DIR:ge_demo> COMMAND_EXPAND_LISTS)
+endif()
 
 # ---- tests, tools, install ----------------------------------------------------
 if(GE_BUILD_TESTS)
@@ -79,4 +90,4 @@ if(GE_BUILD_TOOLS)
 endif()
 include(Packaging)
 
-message(STATUS "GameEngine ${PROJECT_VERSION}: platform=${GE_PLATFORM_NAME} build=${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES} assembly=${GE_ASM_STATUS}")
+message(STATUS "GameEngine ${PROJECT_VERSION}: platform=${GE_PLATFORM_NAME} build=${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES} assembly=${GE_ASM_STATUS} sdl=${GE_SDL_STATUS}")

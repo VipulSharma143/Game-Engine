@@ -26,9 +26,11 @@ Usage: ./start-all.sh [options] [-- demo arguments]
       --with-tests  run the test suite as part of the build
       --allow-multiple  do not refuse to start when another instance is running
       --asm MODE    pass through to build.sh (auto|on|off)
+      --sdl MODE    pass through to build.sh (auto|on|fetch|off); "fetch" builds SDL3 from source
   -h, --help        this help
 
-Example: ./start-all.sh --no-build -- --ascii --frames 120
+Examples: ./start-all.sh --sdl fetch                (first run: build with a window)
+          ./start-all.sh --no-build -- --headless --ppm out.ppm
 USAGE
 }
 
@@ -40,6 +42,7 @@ while [ $# -gt 0 ]; do
     --with-tests) RUN_TESTS=1 ;;
     --allow-multiple) ALLOW_MULTI=1 ;;
     --asm) shift; [ $# -gt 0 ] || { echo "error: --asm needs a value" >&2; exit 1; }; BUILD_ARGS+=(--asm "$1") ;;
+    --sdl) shift; [ $# -gt 0 ] || { echo "error: --sdl needs a value" >&2; exit 1; }; BUILD_ARGS+=(--sdl "$1") ;;
     -h|--help) usage; exit 0 ;;
     --) shift; DEMO_ARGS=("$@"); break ;;
     *) echo "error: unknown option '$1' (demo arguments go after --)" >&2; usage >&2; exit 1 ;;

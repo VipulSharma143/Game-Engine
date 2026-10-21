@@ -13,6 +13,7 @@ struct Player {
     double half_extent = 0.25;    // collision half size, in cells
     double move_speed = 3.0;      // cells per second
     double turn_speed = 2.2;      // radians per second
+    double mouse_sensitivity = 0.0025;  // radians per pixel of mouse motion
 };
 
 // Applies one fixed-step of input to the player: turning, strafing and walking

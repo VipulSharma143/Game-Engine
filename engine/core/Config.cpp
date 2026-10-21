@@ -30,6 +30,7 @@ std::string validate_config(const EngineConfig& c) {
     if (!(c.fixed_timestep > 0.0 && c.fixed_timestep <= 1.0)) return "fixed timestep must be in (0, 1] seconds";
     if (!(c.max_frame_time >= c.fixed_timestep)) return "max frame time must be >= fixed timestep";
     if (c.max_catchup_steps < 1 || c.max_catchup_steps > 100) return "max catch-up steps must be in [1, 100]";
+    if (c.window_scale < 1 || c.window_scale > 16) return "window scale must be in [1, 16]";
     if (c.headless.ascii_columns < 8 || c.headless.ascii_columns > 400) return "ascii columns must be in [8, 400]";
     return {};
 }
@@ -68,6 +69,16 @@ ParseResult parse_arguments(int argc, const char* const* argv, EngineConfig& con
             const char* v = need_value();
             if (v == nullptr) return fail("--ppm needs a file path");
             config.headless.ppm_path = v;
+        } else if (std::strcmp(arg, "--window") == 0) {
+            config.mode = RunMode::Window;
+        } else if (std::strcmp(arg, "--headless") == 0) {
+            config.mode = RunMode::Headless;
+        } else if (std::strcmp(arg, "--no-mouse") == 0) {
+            config.capture_mouse = false;
+        } else if (std::strcmp(arg, "--scale") == 0) {
+            const char* v = need_value();
+            if (v == nullptr || !parse_int(v, iv) || iv < 1 || iv > 16) return fail("--scale needs an integer in [1, 16]");
+            config.window_scale = static_cast<int>(iv);
         } else if (std::strcmp(arg, "--ascii") == 0) {
             config.headless.ascii_summary = true;
         } else if (std::strcmp(arg, "--realtime") == 0) {
@@ -85,7 +96,10 @@ const char* usage_text() noexcept {
     return "Usage: ge-demo [options]\n"
            "  --width N / --height N   framebuffer size (default 320x200)\n"
            "  --fov DEG                horizontal field of view (default 66)\n"
-           "  --frames N               frames to run, must be > 0 headless (default 300)\n"
+           "  --frames N               frames to run (default 300; 0 = until quit, window only)\n"
+           "  --window / --headless    force a window (needs SDL3 + display) or no window (default: auto)\n"
+           "  --scale N                window size multiplier (default 3)\n"
+           "  --no-mouse               do not capture the mouse (keyboard turning only)\n"
            "  --deterministic          virtual clock, fixed step per frame (default)\n"
            "  --realtime               use the monotonic clock instead\n"
            "  --ascii                  print the final frame as ASCII art\n"

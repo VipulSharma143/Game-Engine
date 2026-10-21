@@ -1,0 +1,31 @@
+#pragma once
+// 2D overlay drawn on top of the 3D view: crosshair, counters, banner, weapon, debug text.
+
+#include <cstddef>
+
+#include "engine/renderer/Framebuffer.hpp"
+
+namespace game {
+
+struct HudData {
+    int ammo = 0;
+    int magazine = 0;
+    bool reloading = false;
+    double reload_fraction = 0.0;  // 0..1 while reloading
+    double weapon_flash = 0.0;     // 0..1, recoil and muzzle flash
+    double hit_marker = 0.0;       // 0..1, > 0 shows a red hit marker
+    int score = 0;
+    int wave = 1;
+    int targets_left = 0;
+    bool between_waves = false;
+    bool debug = false;
+    double fps = 0.0;
+    double frame_ms = 0.0;
+    std::size_t entities = 0;
+    const char* backend = "";
+};
+
+void draw_weapon_view(ge::Framebuffer& fb, double flash, bool reloading);
+void draw_hud(ge::Framebuffer& fb, const HudData& hud);
+
+}  // namespace game

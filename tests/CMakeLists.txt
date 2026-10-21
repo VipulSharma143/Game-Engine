@@ -20,3 +20,7 @@ ge_add_test(assembly_equivalence ge_engine assembly/AssemblyEquivalenceTests.cpp
 ge_add_test(integration_engine ge_game integration/EngineIntegrationTests.cpp)
 ge_add_test(unit_entity ge_engine unit/EntityTests.cpp)
 ge_add_test(unit_motion ge_game unit/MotionTests.cpp)
+ge_add_test(unit_gameplay ge_game unit/GameplayTests.cpp)
+if(GE_SDL_ENABLED)
+  ge_add_test(platform_sdl ge_game platform/SDLTests.cpp)
+endif()

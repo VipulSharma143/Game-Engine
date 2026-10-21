@@ -13,6 +13,11 @@ struct InputState {
     double forward = 0.0;  // +1 = forward
     double strafe = 0.0;   // +1 = right
     double turn = 0.0;     // +1 = turn right (clockwise on the map)
+    double look = 0.0;     // horizontal mouse motion this frame, in pixels (+ = right)
+    bool fire = false;     // held
+    bool use = false;      // pressed this frame (edge)
+    bool reload = false;   // pressed this frame (edge)
+    bool toggle_debug = false;  // pressed this frame (edge)
     bool quit = false;
 };
 

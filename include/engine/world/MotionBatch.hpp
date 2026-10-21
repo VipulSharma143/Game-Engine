@@ -14,6 +14,8 @@ class MotionBatch {
 public:
     // Returns the index of the new point.
     std::size_t add(Vec2 position, Vec2 velocity);
+    // Removes point `i` by moving the last point into its slot (indices of the last point change).
+    void remove(std::size_t i);
     std::size_t size() const noexcept { return pos_.size() / 2; }
 
     Vec2 position(std::size_t i) const noexcept { return {pos_[2 * i], pos_[2 * i + 1]}; }

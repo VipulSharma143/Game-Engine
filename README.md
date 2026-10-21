@@ -28,6 +28,28 @@ Window, keyboard/mouse input and real-time presentation (SDL3 is planned), textu
 
 The scripts run on Linux and in Git Bash/MSYS2 on Windows. The Windows path through the scripts has **not been run**; only Linux was verified.
 
+## Playing the demo
+
+`./start-all.sh --sdl fetch` builds SDL3 from source on the first run and opens a window.
+If SDL3 is installed (`libsdl3-dev` or a prefix on `CMAKE_PREFIX_PATH`), plain `./start-all.sh` finds it.
+Without a display or without SDL3 it falls back to the scripted headless demo.
+
+On Debian/Ubuntu/Mint, building SDL3 from source needs the window-system headers first:
+`sudo apt install libx11-dev libxext-dev libxcursor-dev libxi-dev libxrandr-dev libxfixes-dev libxss-dev libxkbcommon-dev libwayland-dev libasound2-dev libgl1-mesa-dev`
+
+| Key | Action |
+| --- | --- |
+| W A S D / arrows up-down | move / strafe |
+| mouse, or arrows left-right | look |
+| left click or Space | fire |
+| R | reload |
+| F3 | debug overlay (FPS, entities, NASM or C++ backend) |
+| Tab | release / recapture the mouse |
+| Esc | quit |
+
+Destroy every target to clear a wave (+250 bonus); each wave adds targets and speed.
+Headless options: `--headless --ppm out.ppm` saves the final frame; `--window --frames N` runs N frames.
+
 ## Prerequisites
 
 - A C++20 compiler (verified: GCC 13.3 on Ubuntu 24.04)

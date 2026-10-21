@@ -56,7 +56,12 @@ int Engine::run(Application& app) {
         if (input.quit || app.wants_quit()) break;
 
         const int steps = stepper.consume(dt);
-        for (int i = 0; i < steps; ++i) app.fixed_update(input, stepper.step());
+        for (int i = 0; i < steps; ++i) {
+            app.fixed_update(input, stepper.step());
+            // Edge-triggered and delta inputs must not repeat on catch-up steps.
+            input.look = 0.0;
+            input.use = input.reload = input.toggle_debug = false;
+        }
         stats_.fixed_steps += static_cast<std::uint64_t>(steps);
 
         app.render(framebuffer_);

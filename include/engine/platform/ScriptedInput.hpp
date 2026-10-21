@@ -12,6 +12,7 @@ struct InputSegment {
     double forward = 0.0;
     double strafe = 0.0;
     double turn = 0.0;
+    bool fire = false;
 };
 
 // Deterministic input playback: segment after segment, then zero input.

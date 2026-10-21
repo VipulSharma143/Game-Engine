@@ -21,6 +21,19 @@ std::size_t MotionBatch::add(Vec2 position, Vec2 velocity) {
     return size() - 1;
 }
 
+void MotionBatch::remove(std::size_t i) {
+    if (i >= size()) return;
+    const std::size_t last = size() - 1;
+    if (i != last) {
+        pos_[2 * i] = pos_[2 * last];
+        pos_[2 * i + 1] = pos_[2 * last + 1];
+        vel_[2 * i] = vel_[2 * last];
+        vel_[2 * i + 1] = vel_[2 * last + 1];
+    }
+    pos_.resize(2 * last);
+    vel_.resize(2 * last);
+}
+
 void MotionBatch::step(double dt, const GridMap& map) {
     const std::size_t n = pos_.size();
     if (n == 0) return;

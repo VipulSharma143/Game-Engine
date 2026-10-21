@@ -10,6 +10,7 @@ InputState ScriptedInput::sample(std::uint64_t frame) const noexcept {
             state.forward = s.forward;
             state.strafe = s.strafe;
             state.turn = s.turn;
+            state.fire = s.fire;
             return state;
         }
         start += s.frames;

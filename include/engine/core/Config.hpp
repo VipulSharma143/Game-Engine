@@ -13,6 +13,8 @@ struct HeadlessOptions {
     int ascii_columns = 80;
 };
 
+enum class RunMode { Auto, Window, Headless };
+
 // Central engine configuration. Plain data; validate() before use.
 struct EngineConfig {
     int width = 320;
@@ -25,6 +27,9 @@ struct EngineConfig {
     bool deterministic = false;          // virtual clock: every frame advances exactly fixed_timestep
     LogLevel log_level = LogLevel::Info;
     HeadlessOptions headless;
+    RunMode mode = RunMode::Auto;  // Auto: window when SDL3 and a display are available
+    int window_scale = 3;          // window size = framebuffer size * scale
+    bool capture_mouse = true;     // relative mouse look in window mode
 };
 
 // Returns an empty string when valid, otherwise a description of the first problem.

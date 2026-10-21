@@ -12,6 +12,7 @@ cd "$ROOT" || exit 1
 
 CONFIG="Release"
 ASM="AUTO"
+SDL="AUTO"
 GENERATOR=""
 JOBS=""
 RUN_TESTS=1
@@ -32,6 +33,7 @@ Usage: ./build.sh [options]
   -r, --release          Release build (default)
       --asm auto|on|off  NASM routines (default: auto; "on" fails if unusable)
       --no-asm           same as --asm off
+      --sdl auto|on|fetch|off  SDL3 window support (default: auto; "fetch" downloads and builds SDL3)
       --no-tests         skip CTest
       --package          create a package with CPack after a successful build
   -G, --generator NAME   CMake generator (default: Ninja if found, else Unix Makefiles / Ninja on Windows)
@@ -55,6 +57,8 @@ while [ $# -gt 0 ]; do
     --asm) shift; [ $# -gt 0 ] || { echo "error: --asm needs a value" >&2; exit 1; }
            ASM="$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')" ;;
     --no-asm) ASM="OFF" ;;
+    --sdl) shift; [ $# -gt 0 ] || { echo "error: --sdl needs a value" >&2; exit 1; }
+           SDL="$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')" ;;
     --no-tests) RUN_TESTS=0 ;;
     --package) PACKAGE=1 ;;
     -G|--generator) shift; [ $# -gt 0 ] || { echo "error: --generator needs a value" >&2; exit 1; }; GENERATOR="$1" ;;
@@ -72,6 +76,7 @@ while [ $# -gt 0 ]; do
 done
 
 case "$ASM" in AUTO|ON|OFF) ;; *) echo "error: --asm must be auto, on or off" >&2; exit 1 ;; esac
+case "$SDL" in AUTO|ON|OFF|FETCH) ;; *) echo "error: --sdl must be auto, on, fetch or off" >&2; exit 1 ;; esac
 
 # ---- colours / messages -------------------------------------------------------
 if [ -t 1 ]; then R=$'\033[31m'; G=$'\033[32m'; Y=$'\033[33m'; B=$'\033[1m'; N=$'\033[0m'; else R=""; G=""; Y=""; B=""; N=""; fi
@@ -106,7 +111,7 @@ HAVE_NINJA=0; have ninja && HAVE_NINJA=1
 HAVE_MAKE=0;  have make && HAVE_MAKE=1
 HAVE_NASM=0;  have nasm && HAVE_NASM=1
 
-SDL_STATUS="not found (optional until the SDL3 window is added)"
+SDL_STATUS="not found (window mode unavailable; install SDL3 or use --sdl fetch)"
 if have pkg-config && pkg-config --exists sdl3 2>/dev/null; then
   SDL_STATUS="found $(pkg-config --modversion sdl3)"
 fi
@@ -125,7 +130,11 @@ diagnose() {
   echo "  Generator:  ${GENERATOR:-MISSING (install ninja or make)}"
   echo "  NASM:       $( [ $HAVE_NASM = 1 ] && ver nasm -v || echo 'not found (assembly routines will fall back to C++)')"
   echo "  SDL3:       $SDL_STATUS"
-  echo "  Config:     $CONFIG  asm=$ASM  jobs=${JOBS:-auto}"
+  if [ "$OS" = "linux" ] && [ ! -f /usr/include/X11/Xlib.h ] && [ ! -f /usr/include/wayland-client.h ]; then
+    echo "  X11/Wayland dev headers: MISSING (a source-built SDL3 would have no window). Install:"
+    echo "    sudo apt install libx11-dev libxext-dev libxcursor-dev libxi-dev libxrandr-dev libxfixes-dev libxss-dev libxkbcommon-dev libwayland-dev libasound2-dev libgl1-mesa-dev"
+  fi
+  echo "  Config:     $CONFIG  asm=$ASM  sdl=$SDL  jobs=${JOBS:-auto}"
 }
 
 check_required() {
@@ -202,7 +211,7 @@ run_logged() { # run_logged <log> <cmd...>
 
 # ---- configure ----------------------------------------------------------------------
 step "Configure ($CONFIG, generator: $GENERATOR)"
-CFG_ARGS=(-S . -B "$BUILD_DIR" -G "$GENERATOR" "-DCMAKE_BUILD_TYPE=$CONFIG" "-DGE_ASM=$ASM"
+CFG_ARGS=(-S . -B "$BUILD_DIR" -G "$GENERATOR" "-DCMAKE_BUILD_TYPE=$CONFIG" "-DGE_ASM=$ASM" "-DGE_SDL=$SDL"
           "-DGE_WARNINGS_AS_ERRORS=$WERROR")
 [ -n "$CXX_OVERRIDE" ] && CFG_ARGS+=("-DCMAKE_CXX_COMPILER=$CXX_OVERRIDE")
 [ -n "$SANITIZE" ] && CFG_ARGS+=("-DGE_SANITIZE=$SANITIZE")
