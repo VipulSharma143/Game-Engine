@@ -36,4 +36,13 @@ inline std::uint64_t fnv1a64_u32(const std::uint32_t* pixels, std::size_t count,
     return hash;
 }
 
+// dst[i] += src[i] * scale for i in [0, count). `count` is in doubles. Each element is a
+// separate multiply then add (no fused multiply-add), matching ge_vec2_madd bit for bit.
+inline void vec2_madd(double* dst, const double* src, double scale, std::size_t count) noexcept {
+    for (std::size_t i = 0; i < count; ++i) {
+        const volatile double product = src[i] * scale;  // volatile: forbid FMA contraction
+        dst[i] = dst[i] + product;
+    }
+}
+
 }  // namespace ge::scalar

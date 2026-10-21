@@ -43,6 +43,7 @@ add_library(ge_engine STATIC
   engine/renderer/Framebuffer.cpp
   engine/renderer/Raycaster.cpp
   engine/renderer/Renderer.cpp
+  engine/world/MotionBatch.cpp
   engine/world/World.cpp)
 add_library(ge::engine ALIAS ge_engine)
 target_include_directories(ge_engine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")

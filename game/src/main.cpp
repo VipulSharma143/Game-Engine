@@ -1,4 +1,6 @@
 #include <cstdio>
+
+#include "engine/optimized/OptimizedRoutines.hpp"
 #include <memory>
 
 #include "engine/core/Engine.hpp"
@@ -42,5 +44,9 @@ int main(int argc, char** argv) {
                 static_cast<unsigned long long>(stats.frames), static_cast<unsigned long long>(stats.fixed_steps),
                 stats.simulated_seconds, app.player().position.x, app.player().position.y, app.player().angle,
                 static_cast<unsigned long long>(engine.framebuffer().checksum()));
+    std::printf("world: %zu entities, %zu moving targets, motion backend: %s, target checksum=%016llx\n",
+                app.entities().size(), app.target_count(),
+                ge::opt::asm_enabled() ? "NASM x86-64 (ge_vec2_madd, SSE2)" : "C++ fallback",
+                static_cast<unsigned long long>(app.target_checksum()));
     return 0;
 }

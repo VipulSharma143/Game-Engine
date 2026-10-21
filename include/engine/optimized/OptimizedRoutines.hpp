@@ -11,6 +11,7 @@ extern "C" {
 void ge_fill_u32(std::uint32_t* dst, std::uint32_t value, std::size_t count);
 void ge_fill_column_u32(std::uint32_t* dst, std::size_t stride_bytes, std::uint32_t value, std::size_t count);
 std::uint64_t ge_fnv1a64_u32(const std::uint32_t* pixels, std::size_t count, std::uint64_t hash);
+void ge_vec2_madd(double* dst, const double* src, const double* scale, std::size_t count);
 }
 #endif
 
@@ -47,6 +48,15 @@ inline std::uint64_t fnv1a64_u32(const std::uint32_t* pixels, std::size_t count,
     return ge_fnv1a64_u32(pixels, count, hash);
 #else
     return scalar::fnv1a64_u32(pixels, count, hash);
+#endif
+}
+
+// dst[i] += src[i] * scale over `count` doubles (SSE2 NASM routine, else the scalar loop).
+inline void vec2_madd(double* dst, const double* src, double scale, std::size_t count) noexcept {
+#if defined(GE_HAVE_ASM)
+    ge_vec2_madd(dst, src, &scale, count);
+#else
+    scalar::vec2_madd(dst, src, scale, count);
 #endif
 }
 

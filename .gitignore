@@ -15,3 +15,9 @@ compile_commands.json
 *.swp
 .DS_Store
 Thumbs.db
+
+# Packaging
+_CPack_Packages/
+*.tar.gz
+*.sha256
+out/

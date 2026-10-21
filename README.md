@@ -18,6 +18,16 @@ A small C++20 / NASM x86-64 engine foundation with a CPU raycasting renderer, bu
 
 Window, keyboard/mouse input and real-time presentation (SDL3 is planned), textures, sprites, enemies, weapons, audio, JSON levels/prefabs, level editor, entity-component system, multithreading. Windows and Clang builds are configured in CI but have not been verified by the maintainers yet.
 
+## Root scripts
+
+| Script | Purpose |
+| --- | --- |
+| `./build.sh` | Detects OS, compiler, CMake, NASM and SDL3, then configures, builds and tests. Options: `--debug/--release`, `--asm auto|on|off`, `--no-tests`, `--package`, `--diagnose`, `--werror`, `--sanitize`, `-v`. Exit codes: 0 ok, 1 usage/missing tool, 2 configure, 3 build, 4 tests, 5 package. On a build failure it prints the failing target, source file and stage. Output goes to `build/<config>/`. |
+| `./start-all.sh` | Builds (or with `--no-build` verifies existing binaries), checks prerequisites, refuses a second instance (`--allow-multiple` overrides), launches `ge-demo` and shuts it down cleanly on Ctrl+C. Demo arguments follow `--`. |
+| `./clean.sh` | Removes only known generated paths (`build/`, `out/`, `*.ppm`). `--deep` also removes stray CMake files and root-level packages; `--dry-run` previews. Safe to repeat. |
+
+The scripts run on Linux and in Git Bash/MSYS2 on Windows. The Windows path through the scripts has **not been run**; only Linux was verified.
+
 ## Prerequisites
 
 - A C++20 compiler (verified: GCC 13.3 on Ubuntu 24.04)

@@ -161,3 +161,41 @@ TEST(pixel_routines_preserve_caller_state) {
     CHECK_EQ(a, 2003u);
     CHECK_EQ(b, 5u + 2000u * 3u + (2000u * 2001u) / 2u);  // 5 + sum of (3 + i) for i = 1..2000
 }
+
+#include <cstring>
+
+namespace {
+bool bitwise_equal(const std::vector<double>& a, const std::vector<double>& b) {
+    return a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * sizeof(double)) == 0;
+}
+}  // namespace
+
+TEST(vec2_madd_matches_scalar_for_all_lengths_and_alignments) {
+    std::uint64_t state = 0x1234567ull;
+    auto next = [&state] {
+        state ^= state << 13; state ^= state >> 7; state ^= state << 17;
+        return static_cast<double>(static_cast<std::int64_t>(state % 2000001) - 1000000) / 977.0;
+    };
+    for (std::size_t count = 0; count <= 37; ++count) {
+        for (std::size_t offset = 0; offset < 2; ++offset) {  // offset 1 => 8-byte aligned only
+            std::vector<double> d(count + 2), s(count + 2), expect;
+            for (auto& v : d) v = next();
+            for (auto& v : s) v = next();
+            expect = d;
+            const double k = next();
+            ge::scalar::vec2_madd(expect.data() + offset, s.data() + offset, k, count);
+            ge::opt::vec2_madd(d.data() + offset, s.data() + offset, k, count);
+            CHECK(bitwise_equal(d, expect));
+        }
+    }
+}
+
+TEST(vec2_madd_known_values_and_untouched_tail) {
+    std::vector<double> dst = {1, 2, 3, 99};
+    const std::vector<double> src = {10, 20, 30, 40};
+    ge::opt::vec2_madd(dst.data(), src.data(), 0.5, 3);
+    CHECK_NEAR(dst[0], 6.0, 0.0);
+    CHECK_NEAR(dst[1], 12.0, 0.0);
+    CHECK_NEAR(dst[2], 18.0, 0.0);
+    CHECK_NEAR(dst[3], 99.0, 0.0);  // element past `count` must not be written
+}
