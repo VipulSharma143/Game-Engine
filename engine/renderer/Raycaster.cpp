@@ -51,3 +51,16 @@ RayHit cast_ray(const GridMap& map, Vec2 origin, Vec2 dir) noexcept {
 }
 
 }  // namespace ge
+
+namespace ge {
+
+double wall_texture_u(Vec2 origin, Vec2 ray, const RayHit& hit) noexcept {
+    const double along = hit.y_side ? origin.x + ray.x * hit.distance : origin.y + ray.y * hit.distance;
+    double u = along - std::floor(along);
+    // Screen-right is right_of(forward) = (-fy, fx) in this engine: facing -x the right side is -y,
+    // facing +y it is -x. Flip in those two cases so u always grows towards screen-right.
+    if ((!hit.y_side && ray.x < 0.0) || (hit.y_side && ray.y > 0.0)) u = 1.0 - u;
+    return u < 1.0 ? u : 0.999999;
+}
+
+}  // namespace ge

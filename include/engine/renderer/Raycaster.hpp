@@ -20,4 +20,8 @@ struct RayHit {
 // perpendicular distance to the camera plane (no fisheye correction needed).
 RayHit cast_ray(const GridMap& map, Vec2 origin, Vec2 dir) noexcept;
 
+// Horizontal texture coordinate in [0, 1) of a wall hit, oriented so textures are never
+// mirrored whichever face or direction the ray arrives from.
+double wall_texture_u(Vec2 origin, Vec2 ray, const RayHit& hit) noexcept;
+
 }  // namespace ge

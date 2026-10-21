@@ -48,6 +48,7 @@ On Debian/Ubuntu/Mint, building SDL3 from source needs the window-system headers
 | Esc | quit |
 
 Destroy every target to clear a wave (+250 bonus); each wave adds targets and speed.
+Rendering is textured by default (procedural brick, stone, panel and plank walls, tiled floor, lit ceiling panels, distance fog); `--flat` switches to the original flat-shaded walls.
 Headless options: `--headless --ppm out.ppm` saves the final frame; `--window --frames N` runs N frames.
 
 ## Prerequisites

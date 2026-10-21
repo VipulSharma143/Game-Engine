@@ -30,6 +30,7 @@ struct EngineConfig {
     RunMode mode = RunMode::Auto;  // Auto: window when SDL3 and a display are available
     int window_scale = 3;          // window size = framebuffer size * scale
     bool capture_mouse = true;     // relative mouse look in window mode
+    bool textured = true;          // textured walls/floor/ceiling with fog; false = flat colours
 };
 
 // Returns an empty string when valid, otherwise a description of the first problem.

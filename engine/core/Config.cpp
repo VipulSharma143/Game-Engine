@@ -73,6 +73,8 @@ ParseResult parse_arguments(int argc, const char* const* argv, EngineConfig& con
             config.mode = RunMode::Window;
         } else if (std::strcmp(arg, "--headless") == 0) {
             config.mode = RunMode::Headless;
+        } else if (std::strcmp(arg, "--flat") == 0) {
+            config.textured = false;
         } else if (std::strcmp(arg, "--no-mouse") == 0) {
             config.capture_mouse = false;
         } else if (std::strcmp(arg, "--scale") == 0) {
@@ -99,6 +101,7 @@ const char* usage_text() noexcept {
            "  --frames N               frames to run (default 300; 0 = until quit, window only)\n"
            "  --window / --headless    force a window (needs SDL3 + display) or no window (default: auto)\n"
            "  --scale N                window size multiplier (default 3)\n"
+           "  --flat                   flat-shaded walls instead of textures and fog\n"
            "  --no-mouse               do not capture the mouse (keyboard turning only)\n"
            "  --deterministic          virtual clock, fixed step per frame (default)\n"
            "  --realtime               use the monotonic clock instead\n"

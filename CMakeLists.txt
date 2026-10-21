@@ -45,6 +45,7 @@ add_library(ge_engine STATIC
   engine/renderer/Raycaster.cpp
   engine/renderer/Renderer.cpp
   engine/renderer/SpriteRenderer.cpp
+  engine/renderer/Texture.cpp
   engine/renderer/TextRenderer.cpp
   engine/world/MotionBatch.cpp
   engine/world/World.cpp)

@@ -26,6 +26,10 @@ ge::Status GameApplication::initialize(const ge::EngineConfig& config) {
     if (ge::collides_aabb(level_.map, player_.position, player_.half_extent))
         return ge::Status::failure("player spawn is inside a wall");
     fov_degrees_ = config.fov_degrees;
+    if (config.textured) {
+        textures_ = ge::TextureSet::make_procedural();
+        renderer_.set_textures(&textures_);
+    }
     start_wave(1);
     return ge::Status::success();
 }

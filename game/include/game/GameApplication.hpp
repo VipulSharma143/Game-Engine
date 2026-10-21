@@ -20,6 +20,8 @@ enum class GameState { Playing, Quit };
 class GameApplication final : public ge::Application {
 public:
     explicit GameApplication(ge::Level level);
+    GameApplication(const GameApplication&) = delete;             // the renderer points at textures_
+    GameApplication& operator=(const GameApplication&) = delete;
 
     ge::Status initialize(const ge::EngineConfig& config) override;
     void fixed_update(const ge::InputState& input, double dt) override;
@@ -50,6 +52,7 @@ public:
 private:
     ge::Level level_;
     Player player_;
+    ge::TextureSet textures_;
     ge::Renderer renderer_;
     ge::EntityWorld entities_;
     ge::MotionBatch motion_;
