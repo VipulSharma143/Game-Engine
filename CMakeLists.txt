@@ -42,6 +42,8 @@ add_library(ge_engine STATIC
   engine/resources/AssetPath.cpp
   engine/resources/ResourceManager.cpp
   engine/core/Settings.cpp
+  engine/optimized/CpuFeatures.cpp
+  engine/optimized/FogBlend.cpp
   engine/audio/AudioMixer.cpp
   engine/audio/Synth.cpp
   engine/audio/Wav.cpp
