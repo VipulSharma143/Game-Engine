@@ -191,3 +191,16 @@ TEST(motion_batch_remove_swaps_last_into_slot) {
     m.remove(5);  // out of range: ignored
     CHECK_EQ(m.size(), 2u);
 }
+
+TEST(text_renderer_knows_every_character_the_game_prints) {
+    // Unknown characters render as a hollow box; every HUD/menu character must have a real glyph.
+    ge::Framebuffer a(16, 10), b(16, 10);
+    a.clear(0); b.clear(0);
+    const std::uint32_t w = ge::pack_rgb(255, 255, 255);
+    ge::draw_text(a, 1, 1, "?", w);  // '?' is not in the table, so it draws the box
+    for (char c : std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 :/.-!%+(),<>=")) {
+        b.clear(0);
+        ge::draw_text(b, 1, 1, std::string(1, c), w);
+        if (c != ' ') CHECK(b.checksum() != a.checksum());
+    }
+}

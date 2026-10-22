@@ -79,6 +79,13 @@ void draw_hud(ge::Framebuffer& fb, const HudData& d) {
         ge::draw_text_shadowed(fb, (w - ge::text_width(msg, 2)) / 2, h / 4, msg, yellow, 2);
     }
 
+    // Event feed, newest at the bottom, right-aligned above the ammo line.
+    int fy = h - 12 - 10 * static_cast<int>(d.feed.size());
+    for (const std::string& line : d.feed) {
+        ge::draw_text_shadowed(fb, w - ge::text_width(line) - 4, fy, line, ge::pack_rgb(190, 230, 255));
+        fy += 10;
+    }
+
     if (d.debug) {
         std::snprintf(buf, sizeof buf, "FPS %.0f  %.1f MS", d.fps, d.frame_ms);
         ge::draw_text_shadowed(fb, w - ge::text_width(buf) - 4, 16, buf, ge::pack_rgb(120, 255, 120));
@@ -87,6 +94,55 @@ void draw_hud(ge::Framebuffer& fb, const HudData& d) {
         std::snprintf(buf, sizeof buf, "MATH: %s", d.backend);
         ge::draw_text_shadowed(fb, w - ge::text_width(buf) - 4, 36, buf, ge::pack_rgb(120, 255, 120));
     }
+}
+
+namespace {
+
+void dim(ge::Framebuffer& fb, int percent) {
+    for (std::uint32_t& px : fb.pixels())
+        px = ge::pack_rgb(ge::red_of(px) * static_cast<unsigned>(percent) / 100, ge::green_of(px) * static_cast<unsigned>(percent) / 100,
+                          ge::blue_of(px) * static_cast<unsigned>(percent) / 100);
+}
+
+void centered(ge::Framebuffer& fb, int y, const std::string& text, std::uint32_t color, int scale = 1) {
+    ge::draw_text_shadowed(fb, (fb.width() - ge::text_width(text, scale)) / 2, y, text, color, scale);
+}
+
+}  // namespace
+
+void draw_menu_screen(ge::Framebuffer& fb, const HudData& d) {
+    dim(fb, 45);
+    const int h = fb.height();
+    centered(fb, h / 5, "GAME ENGINE", ge::pack_rgb(250, 220, 90), 3);
+    centered(fb, h / 5 + 32, "TARGET RANGE", ge::pack_rgb(235, 235, 235), 2);
+    centered(fb, h / 2 - 4, std::string("LEVEL: ") + d.level_name, ge::pack_rgb(190, 230, 255));
+    char buf[48];
+    std::snprintf(buf, sizeof buf, "CLEAR %d WAVES TO WIN", d.waves_to_win);
+    centered(fb, h / 2 + 8, buf, ge::pack_rgb(190, 230, 255));
+    centered(fb, h * 3 / 4 - 6, "PRESS ENTER OR CLICK TO START", ge::pack_rgb(120, 255, 120));
+    centered(fb, h * 3 / 4 + 6, "Q QUIT", ge::pack_rgb(200, 200, 200));
+}
+
+void draw_pause_screen(ge::Framebuffer& fb) {
+    dim(fb, 40);
+    const int h = fb.height();
+    centered(fb, h / 3, "PAUSED", ge::pack_rgb(250, 220, 90), 3);
+    centered(fb, h / 2 + 8, "ESC OR ENTER RESUME", ge::pack_rgb(235, 235, 235));
+    centered(fb, h / 2 + 20, "Q QUIT", ge::pack_rgb(200, 200, 200));
+}
+
+void draw_victory_screen(ge::Framebuffer& fb, const HudData& d) {
+    dim(fb, 40);
+    const int h = fb.height();
+    centered(fb, h / 5, "YOU WIN!", ge::pack_rgb(250, 220, 90), 3);
+    char buf[64];
+    std::snprintf(buf, sizeof buf, "SCORE %05d", d.score);
+    centered(fb, h / 2 - 14, buf, ge::pack_rgb(235, 235, 235), 2);
+    const unsigned accuracy = d.shots == 0 ? 0 : (d.hits * 100u) / d.shots;
+    std::snprintf(buf, sizeof buf, "ACCURACY %u%%  %u OF %u SHOTS", accuracy, d.hits, d.shots);
+    centered(fb, h / 2 + 8, buf, ge::pack_rgb(190, 230, 255));
+    centered(fb, h * 3 / 4 - 6, "ENTER PLAY AGAIN", ge::pack_rgb(120, 255, 120));
+    centered(fb, h * 3 / 4 + 6, "Q QUIT", ge::pack_rgb(200, 200, 200));
 }
 
 }  // namespace game

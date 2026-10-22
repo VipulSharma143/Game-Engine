@@ -39,6 +39,12 @@ add_library(ge_engine STATIC
   engine/platform/FrameDump.cpp
   engine/platform/HeadlessPlatform.cpp
   engine/platform/PlatformFactory.cpp
+  engine/resources/AssetPath.cpp
+  engine/resources/ResourceManager.cpp
+  engine/core/Settings.cpp
+  engine/audio/AudioMixer.cpp
+  engine/audio/Synth.cpp
+  engine/audio/Wav.cpp
   engine/platform/ScriptedInput.cpp
   engine/renderer/Camera.cpp
   engine/renderer/Framebuffer.cpp
@@ -48,6 +54,7 @@ add_library(ge_engine STATIC
   engine/renderer/Texture.cpp
   engine/renderer/TextRenderer.cpp
   engine/world/MotionBatch.cpp
+  engine/world/LevelLoader.cpp
   engine/world/World.cpp)
 add_library(ge::engine ALIAS ge_engine)
 target_include_directories(ge_engine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -62,6 +69,7 @@ add_library(ge_game STATIC
   game/src/DemoTour.cpp
   game/src/GameApplication.cpp
   game/src/Hud.cpp
+  game/src/GameAudio.cpp
   game/src/PlayerController.cpp
   game/src/WeaponSystem.cpp)
 add_library(ge::game ALIAS ge_game)

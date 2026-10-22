@@ -18,6 +18,8 @@ public:
     // Called exactly once if initialize() succeeded.
     virtual void shutdown() noexcept = 0;
     virtual bool wants_quit() const noexcept = 0;
+    // False while a menu is up, so the mouse is released for the player.
+    virtual bool wants_mouse_capture() const noexcept { return true; }
 };
 
 }  // namespace ge

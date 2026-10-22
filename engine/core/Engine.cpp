@@ -61,10 +61,12 @@ int Engine::run(Application& app) {
             // Edge-triggered and delta inputs must not repeat on catch-up steps.
             input.look = 0.0;
             input.use = input.reload = input.toggle_debug = false;
+            input.pause = input.confirm = input.menu_quit = false;
         }
         stats_.fixed_steps += static_cast<std::uint64_t>(steps);
 
         app.render(framebuffer_);
+        platform_->set_mouse_capture(app.wants_mouse_capture());
         platform_->present(framebuffer_, stats_.frames);
         ++stats_.frames;
         if (config_.max_frames != 0 && stats_.frames >= config_.max_frames) break;

@@ -18,6 +18,9 @@ struct InputState {
     bool use = false;      // pressed this frame (edge)
     bool reload = false;   // pressed this frame (edge)
     bool toggle_debug = false;  // pressed this frame (edge)
+    bool pause = false;         // pressed this frame (edge)
+    bool confirm = false;       // pressed this frame (edge): menus
+    bool menu_quit = false;     // pressed this frame (edge): quit from a menu
     bool quit = false;
 };
 
@@ -33,6 +36,8 @@ public:
     virtual void present(const Framebuffer& frame, std::uint64_t frame_index) = 0;
     // Called once after the last frame; headless output (PPM, ASCII) is written here.
     virtual void finalize(const Framebuffer& final_frame) = 0;
+    // The application asks for the mouse to be captured (gameplay) or free (menus). Default: ignore.
+    virtual void set_mouse_capture(bool) {}
 };
 
 }  // namespace ge

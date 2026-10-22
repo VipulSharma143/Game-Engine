@@ -33,10 +33,13 @@ struct Level {
     GridMap map;
     Vec2 spawn{1.5, 1.5};
     double spawn_angle = 0.0;
+    std::string name = "Untitled";
+    std::vector<Vec2> target_spawns;  // 'T' cells; waves place targets here first
+    int waves_to_win = 3;
 };
 
 // Rows use '#' or '1'-'9' for walls ('#' = id 1), '.' or ' ' for empty space and
-// 'P' for the single player spawn (also empty). All rows must have equal length.
+// 'P' for the single player spawn and 'T' for a preferred target spawn (both empty cells). All rows must have equal length.
 std::optional<Level> parse_level(std::span<const std::string_view> rows, std::string& error);
 
 // Deterministic built-in map used by the demo and the tests.

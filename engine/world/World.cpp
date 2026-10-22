@@ -39,6 +39,8 @@ std::optional<Level> parse_level(std::span<const std::string_view> rows, std::st
                 }
                 spawn_found = true;
                 level.spawn = {static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5};
+            } else if (c == 'T') {
+                level.target_spawns.push_back({static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5});
             } else if (c != '.' && c != ' ') {
                 error = std::string("unknown map character '") + c + "'";
                 return std::nullopt;
@@ -72,7 +74,9 @@ const Level& test_level() {
         };
         std::string error;
         auto parsed = parse_level(rows, error);
-        return parsed ? *parsed : Level{};
+        Level built_in = parsed ? *parsed : Level{};
+        built_in.name = "Training Hall";  // same layout as assets/levels/hall.txt
+        return built_in;
     }();
     return level;
 }

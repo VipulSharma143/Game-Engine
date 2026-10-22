@@ -45,11 +45,34 @@ On Debian/Ubuntu/Mint, building SDL3 from source needs the window-system headers
 | R | reload |
 | F3 | debug overlay (FPS, entities, NASM or C++ backend) |
 | Tab | release / recapture the mouse |
-| Esc | quit |
+| Esc or P | pause (Esc again or Enter resumes, Q quits) |
+| Enter / click | confirm in menus |
 
 Destroy every target to clear a wave (+250 bonus); each wave adds targets and speed.
 Rendering is textured by default (procedural brick, stone, panel and plank walls, tiled floor, lit ceiling panels, distance fog); `--flat` switches to the original flat-shaded walls.
 Headless options: `--headless --ppm out.ppm` saves the final frame; `--window --frames N` runs N frames.
+
+## Levels, settings and key bindings
+
+- **Levels** are plain text files in `assets/levels/` (`hall`, `arena`, `maze` ship with the repo).
+  `./start-all.sh -- --level arena` plays one, `--list-levels` lists them, and `--level path/to/file.txt` loads any file.
+  Format: optional `name:`, `angle:` (degrees), `waves:` lines, then `map:` followed by rows. `1`-`9` are wall
+  textures, `.` is floor, `P` is the single player start, `T` is a preferred target spawn. The border must be solid.
+  Mistakes are reported with the file and line (`row 12 has a different length`).
+- **Settings:** copy `assets/settings.ini` next to where you run the demo as `settings.ini` (or pass `--settings FILE`)
+  to change resolution, FOV, mouse sensitivity, textures and every key binding (SDL key names, several per action
+  separated by commas). Typos are errors with the line number. Precedence: defaults < settings file < command line.
+- **Assets** are found automatically near the executable; set `GE_ASSETS=/path` or pass `--assets DIR` to override.
+
+## Sound
+
+Sound effects (shot, hit, kill, reload, wave start/clear, win, menu blips) are synthesised in code at startup, so
+there are no audio files. They are mixed by a small software mixer (16 voices, stereo panning from where the target is
+relative to you) and played through SDL3 in window mode. `--volume 0..1`, `--no-audio`, or `audio`/`volume` in `settings.ini`
+control it. If no audio device can be opened the game continues silently and says so.
+
+Headless runs can render the audio to a file instead of a speaker: `./start-all.sh --no-build -- --headless --wav demo.wav`
+writes the demo's sound track (16-bit stereo, 44.1 kHz), so you can hear what the scripted run triggers.
 
 ## Prerequisites
 

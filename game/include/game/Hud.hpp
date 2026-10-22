@@ -2,6 +2,8 @@
 // 2D overlay drawn on top of the 3D view: crosshair, counters, banner, weapon, debug text.
 
 #include <cstddef>
+#include <string>
+#include <vector>
 
 #include "engine/renderer/Framebuffer.hpp"
 
@@ -16,6 +18,11 @@ struct HudData {
     double hit_marker = 0.0;       // 0..1, > 0 shows a red hit marker
     int score = 0;
     int wave = 1;
+    int waves_to_win = 3;
+    unsigned shots = 0;
+    unsigned hits = 0;
+    const char* level_name = "";
+    std::vector<std::string> feed;  // recent event messages, oldest first
     int targets_left = 0;
     bool between_waves = false;
     bool debug = false;
@@ -27,5 +34,10 @@ struct HudData {
 
 void draw_weapon_view(ge::Framebuffer& fb, double flash, bool reloading);
 void draw_hud(ge::Framebuffer& fb, const HudData& hud);
+
+// Full-screen overlays: they darken the scene behind them.
+void draw_menu_screen(ge::Framebuffer& fb, const HudData& hud);
+void draw_pause_screen(ge::Framebuffer& fb);
+void draw_victory_screen(ge::Framebuffer& fb, const HudData& hud);
 
 }  // namespace game

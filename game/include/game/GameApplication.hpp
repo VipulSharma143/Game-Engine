@@ -1,20 +1,22 @@
 #pragma once
 
+#include <deque>
+#include <string>
 #include <vector>
 
 #include "engine/core/Application.hpp"
+#include "engine/core/EventBus.hpp"
 #include "engine/physics/Collision.hpp"
 #include "engine/renderer/Renderer.hpp"
 #include "engine/renderer/SpriteRenderer.hpp"
 #include "engine/world/MotionBatch.hpp"
 #include "engine/world/World.hpp"
 #include "engine/world/WorldSystem.hpp"
+#include "game/GameEvents.hpp"
 #include "game/PlayerController.hpp"
 #include "game/WeaponSystem.hpp"
 
 namespace game {
-
-enum class GameState { Playing, Quit };
 
 // The playable scene: walk the level and shoot the drifting targets, wave after wave.
 class GameApplication final : public ge::Application {
@@ -28,10 +30,17 @@ public:
     void render(ge::Framebuffer& target) override;
     void shutdown() noexcept override {}
     bool wants_quit() const noexcept override { return state_ == GameState::Quit; }
+    bool wants_mouse_capture() const noexcept override { return state_ == GameState::Playing; }
 
     const Player& player() const noexcept { return player_; }
     GameState state() const noexcept { return state_; }
     Player& mutable_player() noexcept { return player_; }
+    const ge::Level& level() const noexcept { return level_; }
+    ge::Camera camera() const { return camera_for(player_, fov_degrees_); }
+    ge::EventBus& events() noexcept { return events_; }
+
+    // Starts a fresh run: wave 1, full ammo, player back at the spawn. Does not change the state.
+    void restart();
 
     // Drifting target entities (Transform + Health + Collider), moved in bulk each fixed step.
     std::size_t target_count() const noexcept { return targets_.size(); }
@@ -60,8 +69,12 @@ private:
     std::vector<double> flash_;
     std::vector<ge::Sprite> sprites_;  // reused every frame
     Weapon weapon_;
+    ge::EventBus events_;
+    struct FeedMessage { std::string text; double ttl; };
+    std::deque<FeedMessage> feed_;      // short-lived messages shown at the bottom right
     double fov_degrees_ = 66.0;
     GameState state_ = GameState::Playing;
+    bool start_in_menu_ = false;
     int score_ = 0;
     int wave_ = 0;
     unsigned shots_ = 0, hits_ = 0, kills_ = 0;
@@ -76,6 +89,10 @@ private:
     void spawn_targets(std::size_t wanted, double speed_scale);
     void fire_shot();
     void kill_target(std::size_t index);
+    void set_state(GameState next);
+    void update_playing(const ge::InputState& input, double dt);
+    void add_feed(std::string text);
+    void subscribe_feed();
 };
 
 }  // namespace game

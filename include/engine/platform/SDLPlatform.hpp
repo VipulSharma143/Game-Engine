@@ -18,6 +18,7 @@ public:
     void poll_input(InputState& input) override;
     void present(const Framebuffer& frame, std::uint64_t frame_index) override;
     void finalize(const Framebuffer& final_frame) override;
+    void set_mouse_capture(bool wanted) override;
 
 private:
     struct Impl;
