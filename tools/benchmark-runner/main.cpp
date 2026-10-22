@@ -87,14 +87,18 @@ void bench_pixel_routines(int width, int height) {
 
 int main(int argc, char** argv) {
     int width = 640, height = 400, frames = 200, warmup = 20;
-    for (int i = 1; i + 1 < argc; i += 2) {
-        const int v = std::atoi(argv[i + 1]);
-        if (std::strcmp(argv[i], "--width") == 0) width = v;
-        else if (std::strcmp(argv[i], "--height") == 0) height = v;
-        else if (std::strcmp(argv[i], "--frames") == 0) frames = v;
-        else if (std::strcmp(argv[i], "--warmup") == 0) warmup = v;
+    bool textured_only = false;
+    for (int i = 1; i < argc; ++i) {
+        const char* flag = argv[i];
+        if (std::strcmp(flag, "--textured-only") == 0) { textured_only = true; continue; }
+        if (i + 1 >= argc) { std::fprintf(stderr, "usage: ge-bench [--width N] [--height N] [--frames N] [--warmup N] [--textured-only]\n"); return 64; }
+        const int v = std::atoi(argv[++i]);
+        if (std::strcmp(flag, "--width") == 0) width = v;
+        else if (std::strcmp(flag, "--height") == 0) height = v;
+        else if (std::strcmp(flag, "--frames") == 0) frames = v;
+        else if (std::strcmp(flag, "--warmup") == 0) warmup = v;
         else {
-            std::fprintf(stderr, "usage: ge-bench [--width N] [--height N] [--frames N] [--warmup N]\n");
+            std::fprintf(stderr, "usage: ge-bench [--width N] [--height N] [--frames N] [--warmup N] [--textured-only]\n");
             return 64;
         }
     }
@@ -111,24 +115,64 @@ int main(int argc, char** argv) {
         return ge::Camera::from_angle(level.spawn, frame * 0.0174532925, 66.0);
     };
 
-    for (int i = 0; i < warmup; ++i) renderer.render(level.map, camera_at(i), fb);
-
-    std::vector<double> ms;
-    ms.reserve(static_cast<std::size_t>(frames));
-    for (int i = 0; i < frames; ++i) {
-        const ge::Camera cam = camera_at(i);
-        const double t0 = ge::monotonic_seconds();
-        renderer.render(level.map, cam, fb);
-        ms.push_back((ge::monotonic_seconds() - t0) * 1000.0);
-    }
+    struct RenderTiming { double median_ms, min_ms, max_ms; std::uint64_t checksum; };
+    auto time_render = [&](ge::Renderer& r) {
+        for (int i = 0; i < warmup; ++i) r.render(level.map, camera_at(i), fb);
+        std::vector<double> ms;
+        ms.reserve(static_cast<std::size_t>(frames));
+        std::uint64_t sum = 0;
+        for (int i = 0; i < frames; ++i) {
+            const ge::Camera cam = camera_at(i);
+            const double t0 = ge::monotonic_seconds();
+            r.render(level.map, cam, fb);
+            ms.push_back((ge::monotonic_seconds() - t0) * 1000.0);
+            sum = sum * 1099511628211ull + fb.checksum();  // fold every frame so any pixel difference shows
+        }
+        return RenderTiming{median(ms), *std::min_element(ms.begin(), ms.end()), *std::max_element(ms.begin(), ms.end()), sum};
+    };
 
     std::printf("workload : raycast test level (16x16), %dx%d, %d frames (+%d warmup), 66 deg fov, rotating camera\n",
                 width, height, frames, warmup);
     std::printf("build    : %s, compiler %s\n", kBuild, kCompiler);
     std::printf("method   : per-frame wall time with steady_clock around Renderer::render, single thread\n");
-    std::printf("render   : median %.3f ms, min %.3f ms, max %.3f ms (checksum %016llx)\n", median(ms),
-                *std::min_element(ms.begin(), ms.end()), *std::max_element(ms.begin(), ms.end()),
-                static_cast<unsigned long long>(fb.checksum()));
+    if (!textured_only) {
+        const RenderTiming t = time_render(renderer);
+        std::printf("render flat     : median %.3f ms, min %.3f ms, max %.3f ms (all-frames checksum %016llx)\n", t.median_ms,
+                    t.min_ms, t.max_ms, static_cast<unsigned long long>(t.checksum));
+    }
+    const ge::TextureSet textures = ge::TextureSet::make_procedural();
+    ge::Renderer textured_renderer;
+    textured_renderer.set_textures(&textures);
+    {
+        const RenderTiming t = time_render(textured_renderer);
+        std::printf("render textured : median %.3f ms, min %.3f ms, max %.3f ms (all-frames checksum %016llx)\n", t.median_ms,
+                    t.min_ms, t.max_ms, static_cast<unsigned long long>(t.checksum));
+    }
+    // ---- every fog kernel, same frames: time and (must be) identical pixels ----------------------
+    {
+        const ge::opt::FogKernel original = ge::opt::active_fog_kernel();
+        std::printf("\nfog kernels (CPU: avx2=%d, sse2=%d), textured render and the fog routine alone:\n",
+                    ge::opt::fog_kernel_available(ge::opt::FogKernel::Avx2), ge::opt::fog_kernel_available(ge::opt::FogKernel::Sse2));
+        double scalar_frame = 0.0, scalar_row = 0.0, scalar_col = 0.0;
+        std::uint64_t reference = 0;
+        std::vector<std::uint32_t> src_row(static_cast<std::size_t>(width)), dst_row(static_cast<std::size_t>(width));
+        std::vector<std::uint32_t> src_col(static_cast<std::size_t>(height) / 2), dst_col(static_cast<std::size_t>(height) / 2);
+        for (std::size_t i = 0; i < src_row.size(); ++i) src_row[i] = 0xFF000000u | static_cast<std::uint32_t>(i * 2654435761u);
+        for (std::size_t i = 0; i < src_col.size(); ++i) src_col[i] = 0xFF000000u | static_cast<std::uint32_t>(i * 40503u);
+        for (ge::opt::FogKernel k : {ge::opt::FogKernel::Scalar, ge::opt::FogKernel::Sse2, ge::opt::FogKernel::Avx2}) {
+            if (!ge::opt::set_fog_kernel(k)) { std::printf("  %-11s: not available here\n", ge::opt::fog_kernel_name(k)); continue; }
+            const RenderTiming t = time_render(textured_renderer);
+            const double row_ns = bench_ns([&](int i) { ge::opt::fog_blend(dst_row.data(), src_row.data(), src_row.size(), 100 + static_cast<unsigned>(i & 63), 0xFF080A12u); g_sink = dst_row[1]; }, 15, 20000);
+            const double col_ns = bench_ns([&](int i) { ge::opt::fog_blend(dst_col.data(), src_col.data(), src_col.size(), 100 + static_cast<unsigned>(i & 63), 0xFF080A12u); g_sink = dst_col[1]; }, 15, 20000);
+            if (k == ge::opt::FogKernel::Scalar) { scalar_frame = t.median_ms; scalar_row = row_ns; scalar_col = col_ns; reference = t.checksum; }
+            std::printf("  %-11s: frame %.3f ms (%.2fx), %zu-px row %7.1f ns (%.2fx), %zu-px column %6.1f ns (%.2fx), pixels %s\n",
+                        ge::opt::fog_kernel_name(k), t.median_ms, scalar_frame / t.median_ms, src_row.size(), row_ns, scalar_row / row_ns,
+                        src_col.size(), col_ns, scalar_col / col_ns, t.checksum == reference ? "identical" : "DIFFERENT");
+            if (t.checksum != reference) { ge::opt::set_fog_kernel(original); return 1; }
+        }
+        ge::opt::set_fog_kernel(original);
+    }
+    if (textured_only) return 0;
 
     const long n = frames >= 100 ? 20000000L : 100000L;
     const double scalar_ns = time_calls([](long i) { return ge::scalar::add_i64(i, 3); }, n);

@@ -5,6 +5,7 @@
 
 #include <cmath>
 
+#include "engine/optimized/OptimizedRoutines.hpp"
 #include "engine/renderer/Raycaster.hpp"
 
 namespace ge {
@@ -70,16 +71,10 @@ void Renderer::render_flat(const GridMap& map, const Camera& camera, Framebuffer
 namespace ge {
 namespace {
 
-constexpr int kFogR = 8, kFogG = 10, kFogB = 18;
+// Fog colour; each pixel is blended towards it by opt::fog_blend (NASM SSE2/AVX2 or C++).
+constexpr std::uint32_t kFogColor = 0xFF080A12u;  // pack_rgb(8, 10, 18)
 
 // light is 0..256: 256 = unshaded, 0 = fully fogged.
-inline std::uint32_t apply_fog(std::uint32_t c, int light) noexcept {
-    const int inv = 256 - light;
-    return pack_rgb(static_cast<unsigned>((static_cast<int>(red_of(c)) * light + kFogR * inv) >> 8),
-                    static_cast<unsigned>((static_cast<int>(green_of(c)) * light + kFogG * inv) >> 8),
-                    static_cast<unsigned>((static_cast<int>(blue_of(c)) * light + kFogB * inv) >> 8));
-}
-
 inline int light_for(double distance, double side_factor) noexcept {
     const double l = side_factor / (1.0 + distance * distance * 0.02);
     return static_cast<int>(clamp(l, 0.0, 1.0) * 256.0);
@@ -116,8 +111,9 @@ void Renderer::render_textured(const GridMap& map, const Camera& camera, Framebu
             const int tx = static_cast<int>((fx - cx) * Texture::kSize);
             const int ty = static_cast<int>((fy - cy) * Texture::kSize);
             const Texture& t = is_floor ? tex.floor(static_cast<int>(cx) + static_cast<int>(cy)) : tex.ceiling();
-            row[x] = apply_fog(t.at(tx, ty), light);
+            row[x] = t.at(tx, ty);  // raw texel; the whole row is fogged in one kernel call below
         }
+        opt::fog_blend(row, row, static_cast<std::size_t>(w), static_cast<std::uint32_t>(light), kFogColor);
     }
 
     // ---- walls, drawn over the floor and ceiling --------------------------------------------
@@ -142,9 +138,13 @@ void Renderer::render_textured(const GridMap& map, const Camera& camera, Framebu
         const int light = light_for(dist, hit.y_side ? 0.75 : 1.0);
         const double step = Texture::kSize / line_height;
         double tpos = (y0 + 0.5 - top_f) * step;
-        for (int y = y0; y < y1; ++y, tpos += step)
-            px[static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)] =
-                apply_fog(t.at(tx, static_cast<int>(tpos)), light);
+        const int n = y1 - y0;
+        if (n <= 0) continue;
+        column_.resize(static_cast<std::size_t>(n));
+        for (int i = 0; i < n; ++i, tpos += step) column_[static_cast<std::size_t>(i)] = t.at(tx, static_cast<int>(tpos));
+        opt::fog_blend(column_.data(), column_.data(), static_cast<std::size_t>(n), static_cast<std::uint32_t>(light), kFogColor);
+        for (int i = 0; i < n; ++i)
+            px[static_cast<std::size_t>(y0 + i) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)] = column_[static_cast<std::size_t>(i)];
     }
 }
 

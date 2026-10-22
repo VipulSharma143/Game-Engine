@@ -325,7 +325,8 @@ TEST(offline_capture_renders_audio_in_step_with_the_game_clock) {
     ge::InputState fire;
     fire.fire = true;
     rig.app->fixed_update(fire, 1.0 / 60);
-    CHECK(rms(std::vector<float>(sink.begin() + 88000, sink.end())) > 0.0);  // the shot is in the stream
+    const std::vector<float> after_one_second(sink.begin() + 88000, sink.end());
+    CHECK(rms(after_one_second) > 0.0);  // the shot is in the stream
     rig.audio->capture_offline(nullptr);
     const std::size_t frozen = sink.size();
     rig.app->fixed_update(idle, 1.0 / 60);

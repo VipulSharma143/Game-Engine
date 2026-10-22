@@ -1,8 +1,10 @@
+#include <string>
 #include <cstdio>
 #include <cstdint>
 #include <cstddef>
 #include <limits>
 #include <vector>
+#include "engine/optimized/CpuFeatures.hpp"
 
 #include "TestFramework.hpp"
 #include "engine/optimized/OptimizedRoutines.hpp"
@@ -198,4 +200,114 @@ TEST(vec2_madd_known_values_and_untouched_tail) {
     CHECK_NEAR(dst[1], 12.0, 0.0);
     CHECK_NEAR(dst[2], 18.0, 0.0);
     CHECK_NEAR(dst[3], 99.0, 0.0);  // element past `count` must not be written
+}
+
+// ---- fog blend ------------------------------------------------------------------------------------
+namespace {
+
+std::vector<std::uint32_t> random_pixels(std::size_t n, std::uint64_t seed, bool opaque) {
+    std::vector<std::uint32_t> v(n);
+    std::uint64_t s = seed * 0x9E3779B97F4A7C15ull + 1;
+    for (auto& p : v) {
+        s ^= s << 13; s ^= s >> 7; s ^= s << 17;
+        p = static_cast<std::uint32_t>(s >> 11);
+        if (opaque) p |= 0xFF000000u;
+    }
+    return v;
+}
+
+// Restores the active kernel when a test ends, however it ends.
+struct KernelGuard {
+    ge::opt::FogKernel saved = ge::opt::active_fog_kernel();
+    ~KernelGuard() { ge::opt::set_fog_kernel(saved); }
+};
+
+const std::uint32_t kLights[] = {0, 1, 2, 37, 100, 128, 200, 255, 256};
+const std::uint32_t kFogs[] = {0xFF080A12u, 0x00000000u, 0xFFFFFFFFu, 0x80FF0033u};
+
+}  // namespace
+
+TEST(fast_scalar_fog_blend_matches_the_per_channel_reference) {
+    for (std::size_t n : {0u, 1u, 3u, 8u, 33u, 64u}) {
+        const auto src = random_pixels(n, n + 7, false);
+        for (std::uint32_t light : kLights)
+            for (std::uint32_t fog : kFogs) {
+                std::vector<std::uint32_t> a(n), b(n);
+                ge::scalar::fog_blend(a.data(), src.data(), n, light, fog);
+                ge::scalar::fog_blend_reference(b.data(), src.data(), n, light, fog);
+                CHECK(a == b);
+            }
+    }
+}
+
+TEST(fog_blend_extremes_and_alpha) {
+    const auto src = random_pixels(40, 3, true);
+    std::vector<std::uint32_t> out(40);
+    ge::scalar::fog_blend(out.data(), src.data(), 40, 256, 0xFF080A12u);
+    CHECK(out == src);                                  // full light: unchanged
+    ge::scalar::fog_blend(out.data(), src.data(), 40, 0, 0xFF080A12u);
+    for (std::uint32_t p : out) CHECK_EQ(p, 0xFF080A12u);  // no light: pure fog colour
+    ge::scalar::fog_blend(out.data(), src.data(), 40, 77, 0xFF080A12u);
+    for (std::uint32_t p : out) CHECK_EQ(p >> 24, 0xFFu);  // opaque stays opaque
+}
+
+TEST(every_available_fog_kernel_matches_the_reference_exactly) {
+    KernelGuard guard;
+    int tested = 0;
+    for (ge::opt::FogKernel k : {ge::opt::FogKernel::Scalar, ge::opt::FogKernel::Sse2, ge::opt::FogKernel::Avx2}) {
+        if (!ge::opt::set_fog_kernel(k)) continue;
+        ++tested;
+        for (std::size_t n = 0; n <= 70; ++n) {
+            for (std::size_t offset = 0; offset < 4; ++offset) {      // unaligned starts (4-byte steps)
+                const auto src_all = random_pixels(n + 8, n * 31 + offset, false);
+                for (std::uint32_t light : kLights) {
+                    const std::uint32_t fog = kFogs[(n + light) % 4];
+                    // out of place, with guard words on both sides that must not change
+                    std::vector<std::uint32_t> dst(n + 8, 0xDEADBEEFu), expect(n + 8, 0xDEADBEEFu);
+                    ge::scalar::fog_blend_reference(expect.data() + offset, src_all.data() + offset, n, light, fog);
+                    ge::opt::fog_blend(dst.data() + offset, src_all.data() + offset, n, light, fog);
+                    CHECK(dst == expect);
+                    // in place
+                    std::vector<std::uint32_t> inplace = src_all;
+                    ge::opt::fog_blend(inplace.data() + offset, inplace.data() + offset, n, light, fog);
+                    std::vector<std::uint32_t> expect_inplace = src_all;
+                    ge::scalar::fog_blend_reference(expect_inplace.data() + offset, expect_inplace.data() + offset, n, light, fog);
+                    CHECK(inplace == expect_inplace);
+                }
+            }
+        }
+    }
+    // Every kernel this CPU supports must really have been exercised, not silently skipped.
+    int expected = 1;
+#if defined(GE_HAVE_ASM)
+    expected += (ge::cpu_features().sse2 ? 1 : 0) + (ge::cpu_features().avx2 ? 1 : 0);
+#endif
+    CHECK_EQ(tested, expected);
+}
+
+TEST(cpu_feature_detection_is_consistent_with_kernel_availability) {
+    const ge::CpuFeatures& f = ge::cpu_features();
+    if (f.avx2) CHECK(f.sse2);
+    if (f.sse2) CHECK(f.x86_64);
+    CHECK(ge::opt::fog_kernel_available(ge::opt::FogKernel::Scalar));
+#if defined(GE_HAVE_ASM)
+    CHECK_EQ(ge::opt::fog_kernel_available(ge::opt::FogKernel::Avx2), f.avx2);
+    CHECK_EQ(ge::opt::fog_kernel_available(ge::opt::FogKernel::Sse2), f.sse2);
+#else
+    CHECK(!ge::opt::fog_kernel_available(ge::opt::FogKernel::Sse2));
+    CHECK(!ge::opt::fog_kernel_available(ge::opt::FogKernel::Avx2));
+#endif
+    KernelGuard guard;
+    const ge::opt::FogKernel best = ge::opt::best_fog_kernel();
+    CHECK(ge::opt::fog_kernel_available(best));
+    CHECK(ge::opt::set_fog_kernel(best));
+    CHECK(ge::opt::active_fog_kernel() == best);
+    for (ge::opt::FogKernel k : {ge::opt::FogKernel::Scalar, ge::opt::FogKernel::Sse2, ge::opt::FogKernel::Avx2}) {
+        CHECK(std::string(ge::opt::fog_kernel_name(k)).size() > 3u);
+        if (!ge::opt::fog_kernel_available(k)) {
+            const ge::opt::FogKernel before = ge::opt::active_fog_kernel();
+            CHECK(!ge::opt::set_fog_kernel(k));                  // refused...
+            CHECK(ge::opt::active_fog_kernel() == before);       // ...and nothing changed
+        }
+    }
 }

@@ -28,6 +28,7 @@ private:
     void render_flat(const GridMap& map, const Camera& camera, Framebuffer& target);
 
     std::vector<double> depth_;
+    std::vector<std::uint32_t> column_;  // scratch for one wall column
     const TextureSet* textures_ = nullptr;
 };
 

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "TestFramework.hpp"
+#include "engine/optimized/OptimizedRoutines.hpp"
 #include "engine/renderer/Camera.hpp"
 #include "engine/renderer/Raycaster.hpp"
 #include "engine/renderer/Renderer.hpp"
@@ -129,4 +130,27 @@ TEST(textured_render_is_deterministic) {
     r1.render(room, cam, a);
     r2.render(room, cam, b);
     CHECK_EQ(a.checksum(), b.checksum());
+}
+
+TEST(textured_render_is_pixel_identical_for_every_fog_kernel) {
+    const ge::GridMap room = room8();
+    const ge::TextureSet tex = ge::TextureSet::make_procedural();
+    const ge::opt::FogKernel saved = ge::opt::active_fog_kernel();
+    std::vector<std::uint64_t> sums;
+    for (ge::opt::FogKernel k : {ge::opt::FogKernel::Scalar, ge::opt::FogKernel::Sse2, ge::opt::FogKernel::Avx2}) {
+        if (!ge::opt::set_fog_kernel(k)) continue;
+        std::uint64_t sum = 0;
+        for (int i = 0; i < 24; ++i) {  // several sizes (odd widths and heights hit the SIMD tails) and angles
+            const int w = 61 + i * 7, h = 40 + i * 3;
+            ge::Framebuffer fb(w, h);
+            ge::Renderer r;
+            r.set_textures(&tex);
+            r.render(room, ge::Camera::from_angle({2.3 + 0.1 * i, 3.7}, 0.4 * i, 66.0), fb);
+            sum = sum * 1099511628211ull + fb.checksum();
+        }
+        sums.push_back(sum);
+    }
+    ge::opt::set_fog_kernel(saved);
+    CHECK(!sums.empty());
+    for (std::uint64_t s : sums) CHECK_EQ(s, sums.front());
 }

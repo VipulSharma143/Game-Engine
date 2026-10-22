@@ -50,6 +50,7 @@ On Debian/Ubuntu/Mint, building SDL3 from source needs the window-system headers
 
 Destroy every target to clear a wave (+250 bonus); each wave adds targets and speed.
 Rendering is textured by default (procedural brick, stone, panel and plank walls, tiled floor, lit ceiling panels, distance fog); `--flat` switches to the original flat-shaded walls.
+Fog shading runs on a NASM AVX2 or SSE2 kernel when the CPU supports it (F3 shows which; `--fog-kernel scalar|sse2|avx2` forces one). All kernels give identical pixels; see `docs/PERFORMANCE.md` for the measured, modest speed-up.
 Headless options: `--headless --ppm out.ppm` saves the final frame; `--window --frames N` runs N frames.
 
 ## Levels, settings and key bindings

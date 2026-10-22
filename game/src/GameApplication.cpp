@@ -264,7 +264,7 @@ void GameApplication::render(ge::Framebuffer& target) {
     hud.frame_ms = frame_ms_;
     hud.fps = frame_ms_ > 0.0 ? 1000.0 / frame_ms_ : 0.0;
     hud.entities = entities_.size();
-    hud.backend = ge::opt::asm_enabled() ? "NASM" : "C++";
+    hud.backend = ge::opt::fog_kernel_name(ge::opt::active_fog_kernel());
     hud.level_name = level_.name.c_str();
     for (const FeedMessage& m : feed_) hud.feed.push_back(m.text);
 

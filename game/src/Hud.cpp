@@ -91,7 +91,7 @@ void draw_hud(ge::Framebuffer& fb, const HudData& d) {
         ge::draw_text_shadowed(fb, w - ge::text_width(buf) - 4, 16, buf, ge::pack_rgb(120, 255, 120));
         std::snprintf(buf, sizeof buf, "ENTITIES %zu", d.entities);
         ge::draw_text_shadowed(fb, w - ge::text_width(buf) - 4, 26, buf, ge::pack_rgb(120, 255, 120));
-        std::snprintf(buf, sizeof buf, "MATH: %s", d.backend);
+        std::snprintf(buf, sizeof buf, "FOG: %s", d.backend);
         ge::draw_text_shadowed(fb, w - ge::text_width(buf) - 4, 36, buf, ge::pack_rgb(120, 255, 120));
     }
 }

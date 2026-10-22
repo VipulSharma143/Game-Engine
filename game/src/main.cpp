@@ -66,6 +66,18 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    // ---- fog shading kernel -------------------------------------------------------------------------
+    if (config.fog_kernel != "auto") {
+        const ge::opt::FogKernel wanted = config.fog_kernel == "scalar" ? ge::opt::FogKernel::Scalar
+                                         : config.fog_kernel == "sse2"  ? ge::opt::FogKernel::Sse2
+                                                                        : ge::opt::FogKernel::Avx2;
+        if (!ge::opt::set_fog_kernel(wanted)) {
+            std::fprintf(stderr, "error: fog kernel '%s' is not available in this build or on this CPU (best here: %s)\n",
+                         config.fog_kernel.c_str(), ge::opt::fog_kernel_name(ge::opt::best_fog_kernel()));
+            return 1;
+        }
+    }
+
     // ---- assets and level ----------------------------------------------------------------------
     std::optional<ge::ResourceManager> resources;
     {
@@ -178,6 +190,8 @@ int main(int argc, char** argv) {
                 ge::opt::asm_enabled() ? "NASM x86-64 (ge_vec2_madd, SSE2)" : "C++ fallback",
                 static_cast<unsigned long long>(app.target_checksum()));
     std::printf("level: %s\n", app.level().name.c_str());
+    std::printf("render: %s, fog shading: %s\n", config.textured ? "textured" : "flat",
+                config.textured ? ge::opt::fog_kernel_name(ge::opt::active_fog_kernel()) : "unused");
     if (config.audio) {
         std::printf("audio: %zu sounds triggered", mixer.total_started());
         const char* sep = " (";

@@ -57,6 +57,7 @@ struct EngineConfig {
     KeyBindings keys;
     bool audio = true;             // sound effects (window mode plays them; headless only renders offline)
     double volume = 0.7;           // master volume 0..1
+    std::string fog_kernel = "auto";  // auto | scalar | sse2 | avx2 (assembly kernel for fog shading)
     std::string wav_path;          // headless: save the demo's audio to this WAV file
     std::string level;             // level name or file path; empty = built-in level
     std::string assets_dir;        // empty = search (see find_assets_dir)

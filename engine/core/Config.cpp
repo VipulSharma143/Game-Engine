@@ -90,6 +90,11 @@ ParseResult parse_arguments(int argc, const char* const* argv, EngineConfig& con
             config.list_levels = true;
         } else if (std::strcmp(arg, "--no-menu") == 0) {
             config.start_in_menu = false;  // main() also skips enabling the menu when this flag is present
+        } else if (std::strcmp(arg, "--fog-kernel") == 0) {
+            const char* v = need_value();
+            if (v == nullptr || !(std::strcmp(v, "auto") == 0 || std::strcmp(v, "scalar") == 0 || std::strcmp(v, "sse2") == 0 || std::strcmp(v, "avx2") == 0))
+                return fail("--fog-kernel must be auto, scalar, sse2 or avx2");
+            config.fog_kernel = v;
         } else if (std::strcmp(arg, "--no-audio") == 0) {
             config.audio = false;
         } else if (std::strcmp(arg, "--volume") == 0) {
@@ -133,6 +138,7 @@ const char* usage_text() noexcept {
            "  --settings FILE          settings file (default: ./settings.ini if present)\n"
            "  --assets DIR             assets directory (default: searched near the executable)\n"
            "  --no-menu                start playing immediately (window mode)\n"
+           "  --fog-kernel K           fog shading code: auto, scalar (C++), sse2 or avx2 (NASM); default auto\n"
            "  --no-audio               disable sound\n"
            "  --volume V               master volume 0..1 (default 0.7)\n"
            "  --wav FILE               headless: also save the demo's audio as a WAV file\n"

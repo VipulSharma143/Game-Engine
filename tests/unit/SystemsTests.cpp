@@ -250,6 +250,10 @@ TEST(command_line_level_and_settings_options_parse) {
     CHECK(cfg.list_levels && !cfg.textured && !cfg.start_in_menu);
     const char* bad[] = {"ge", "--level"};
     CHECK(!ge::parse_arguments(2, bad, cfg).ok);
+    const char* k[] = {"ge", "--fog-kernel", "sse2"};
+    CHECK(ge::parse_arguments(3, k, cfg).ok && cfg.fog_kernel == "sse2");
+    const char* kbad[] = {"ge", "--fog-kernel", "gpu"};
+    CHECK(!ge::parse_arguments(3, kbad, cfg).ok);
 }
 
 // ---- event bus ----------------------------------------------------------------------------------------
