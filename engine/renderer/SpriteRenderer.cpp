@@ -60,13 +60,23 @@ int draw_sprites(const Camera& cam, std::span<const double> depth, std::span<con
         for (int x = std::max(x0, 0); x < std::min(x1, w); ++x) {
             if (it.p.depth >= depth[static_cast<std::size_t>(x)]) continue;  // hidden behind a wall
             const double u = (x + 0.5 - it.p.screen_x) / r;                   // -1..1 across
-            const double chord = 1.0 - u * u;
+            const double chord = it.s->diamond ? 1.0 - std::fabs(u) : 1.0 - u * u;
             if (chord <= 0.0) continue;
-            const double half_height = r * std::sqrt(chord);
+            const double half_height = it.s->diamond ? r * chord : r * std::sqrt(chord);
             const int y0 = std::max(static_cast<int>(std::floor(cy - half_height)), 0);
             const int y1 = std::min(static_cast<int>(std::ceil(cy + half_height)), h);
             for (int y = y0; y < y1; ++y) {
                 const double v = (y + 0.5 - cy) / r;
+                if (it.s->diamond) {
+                    const double edge = std::fabs(u) + std::fabs(v);
+                    if (edge > 1.0) continue;
+                    // Facets: the upper-left half is lighter, the lower-right darker, with a bright rim.
+                    const double facet = (u + v < 0.0) ? 1.1 : 0.75;
+                    const double rim = edge > 0.85 ? 1.3 : 1.0;
+                    target.set_pixel(x, y, shade(it.s->color, fog * facet * rim, it.s->flash));
+                    any = true;
+                    continue;
+                }
                 const double d2 = u * u + v * v;
                 if (d2 > 1.0) continue;
                 // Sphere-like shading with a highlight toward the upper left.

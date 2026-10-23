@@ -12,6 +12,11 @@ std::uint8_t GridMap::cell(int x, int y) const noexcept {
     return cells_[static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(x)];
 }
 
+void GridMap::set_cell(int x, int y, std::uint8_t id) noexcept {
+    if (x < 0 || y < 0 || x >= width_ || y >= height_) return;
+    cells_[static_cast<std::size_t>(y) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(x)] = id;
+}
+
 std::optional<Level> parse_level(std::span<const std::string_view> rows, std::string& error) {
     if (rows.empty() || rows[0].empty()) {
         error = "level has no rows";
@@ -41,6 +46,15 @@ std::optional<Level> parse_level(std::span<const std::string_view> rows, std::st
                 level.spawn = {static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5};
             } else if (c == 'T') {
                 level.target_spawns.push_back({static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5});
+            } else if (c == 'E') {
+                level.enemy_spawns.push_back({static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5});
+            } else if (c == 'H' || c == 'A' || c == 'K') {
+                const PickupKind kind = c == 'H' ? PickupKind::Health : c == 'A' ? PickupKind::Ammo : PickupKind::Key;
+                level.pickups.push_back({kind, {static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5}});
+            } else if (c == 'D') {
+                id = kDoorId;
+            } else if (c == 'L') {
+                id = kLockedDoorId;
             } else if (c != '.' && c != ' ') {
                 error = std::string("unknown map character '") + c + "'";
                 return std::nullopt;

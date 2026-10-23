@@ -39,7 +39,7 @@ TEST(texture_wraps_coordinates) {
 TEST(procedural_set_is_deterministic_detailed_and_distinct) {
     const ge::TextureSet a = ge::TextureSet::make_procedural();
     const ge::TextureSet b = ge::TextureSet::make_procedural();
-    for (int id = 0; id <= 9; ++id) {
+    for (int id = 0; id <= 11; ++id) {
         CHECK(a.wall(static_cast<std::uint8_t>(id)).pixels() == b.wall(static_cast<std::uint8_t>(id)).pixels());
         if (id >= 1) CHECK(distinct_colours(a.wall(static_cast<std::uint8_t>(id))) > 20u);  // not flat
     }

@@ -29,6 +29,12 @@ GameAudio::GameAudio(GameApplication& app, ge::AudioMixer& mixer, const ge::Soun
     on(ReloadStarted{}, [this](const ReloadStarted&) { mixer_.play(bank_.reload, 0.7f); });
     on(WaveStarted{}, [this](const WaveStarted&) { mixer_.play(bank_.wave_start, 0.7f); });
     on(WaveCleared{}, [this](const WaveCleared&) { mixer_.play(bank_.wave_clear, 0.8f); });
+    on(PlayerHit{}, [this](const PlayerHit&) { mixer_.play(bank_.hurt, 0.9f); });
+    on(PlayerDied{}, [this](const PlayerDied&) { mixer_.play(bank_.die, 0.9f); });
+    on(EnemyKilled{}, [this](const EnemyKilled& e) { mixer_.play(bank_.kill, 0.9f, audio_pan_for(app_.camera(), e.position)); });
+    on(PickupCollected{}, [this](const PickupCollected&) { mixer_.play(bank_.pickup, 0.7f); });
+    on(DoorOpened{}, [this](const DoorOpened& e) { mixer_.play(bank_.door, 0.8f, audio_pan_for(app_.camera(), {e.x + 0.5, e.y + 0.5})); });
+    on(DoorLocked{}, [this](const DoorLocked&) { mixer_.play(bank_.locked, 0.7f); });
     on(GameWon{}, [this](const GameWon&) { mixer_.play(bank_.win, 0.9f); });
     on(StateChanged{}, [this](const StateChanged& e) {
         // Menu navigation blips; entering Victory/Quit has its own sound or none.

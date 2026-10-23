@@ -143,8 +143,8 @@ TEST(mixer_is_safe_to_use_from_two_threads) {
 TEST(synth_sounds_are_clean_loud_enough_and_deterministic) {
     const ge::SoundBank a = ge::SoundBank::make();
     const ge::SoundBank b = ge::SoundBank::make();
-    const std::vector<const ge::Sound*> all = {&a.shot, &a.hit, &a.kill, &a.reload, &a.wave_start, &a.wave_clear, &a.win, &a.ui};
-    const std::vector<const ge::Sound*> all_b = {&b.shot, &b.hit, &b.kill, &b.reload, &b.wave_start, &b.wave_clear, &b.win, &b.ui};
+    const std::vector<const ge::Sound*> all = {&a.shot, &a.hit, &a.kill, &a.reload, &a.wave_start, &a.wave_clear, &a.win, &a.ui, &a.hurt, &a.die, &a.pickup, &a.door, &a.locked};
+    const std::vector<const ge::Sound*> all_b = {&b.shot, &b.hit, &b.kill, &b.reload, &b.wave_start, &b.wave_clear, &b.win, &b.ui, &b.hurt, &b.die, &b.pickup, &b.door, &b.locked};
     std::set<std::string> names;
     for (std::size_t i = 0; i < all.size(); ++i) {
         const ge::Sound& s = *all[i];

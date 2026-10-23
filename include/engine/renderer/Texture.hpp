@@ -30,7 +30,7 @@ private:
     std::vector<std::uint32_t> pixels_;
 };
 
-// Wall textures indexed by wall id (1-9), two floor variants (laid out as a checkerboard)
+// Wall textures indexed by wall id (1-9 walls, 10 door, 11 locked door), two floor variants (laid out as a checkerboard)
 // and one ceiling texture.
 class TextureSet {
 public:
@@ -41,7 +41,7 @@ public:
     const Texture& ceiling() const noexcept { return ceiling_; }
 
 private:
-    std::array<Texture, 10> walls_;  // index 0 is a magenta "missing" texture
+    std::array<Texture, 12> walls_;  // index 0 is a magenta "missing" texture; 10 = door, 11 = locked door
     std::array<Texture, 2> floors_;
     Texture ceiling_;
 };

@@ -53,15 +53,21 @@ std::string load_error(const std::string& text) {
 
 bool contains(const std::string& s, const std::string& part) { return s.find(part) != std::string::npos; }
 
-// Every open cell reachable from `start` (4-connected).
-std::vector<bool> flood(const ge::GridMap& m, ge::Vec2 start) {
+// Every cell reachable from `start` (4-connected). Doors are passable; locked doors only when
+// `locked_open` is true.
+std::vector<bool> flood(const ge::GridMap& m, ge::Vec2 start, bool locked_open = false) {
     std::vector<bool> seen(static_cast<std::size_t>(m.width() * m.height()), false);
     std::queue<std::pair<int, int>> q;
     q.push({static_cast<int>(start.x), static_cast<int>(start.y)});
+    auto passable = [&](int x, int y) {
+        if (!m.is_solid(x, y)) return true;
+        const std::uint8_t id = m.cell(x, y);
+        return id == ge::kDoorId || (locked_open && id == ge::kLockedDoorId);
+    };
     while (!q.empty()) {
         auto [x, y] = q.front();
         q.pop();
-        if (m.is_solid(x, y)) continue;
+        if (x < 0 || y < 0 || x >= m.width() || y >= m.height() || !passable(x, y)) continue;
         auto idx = static_cast<std::size_t>(y * m.width() + x);
         if (seen[idx]) continue;
         seen[idx] = true;
@@ -131,11 +137,25 @@ TEST(shipped_levels_load_are_reachable_and_playable) {
         const auto level = rm.load_level(name, error);
         CHECK(level.has_value());
         if (!level) { std::fprintf(stderr, "  %s: %s\n", name.c_str(), error.c_str()); continue; }
-        const std::vector<bool> reach = flood(level->map, level->spawn);
-        for (const ge::Vec2& t : level->target_spawns) {
-            const auto idx = static_cast<std::size_t>(static_cast<int>(t.y) * level->map.width() + static_cast<int>(t.x));
-            CHECK(reach[idx]);  // a target spawn the player can never reach would make the level unwinnable
+        // Without opening any locked door, every key must be reachable (otherwise the level is a dead end)...
+        const std::vector<bool> before_locked = flood(level->map, level->spawn, false);
+        // ...and with locked doors open, everything the player has to reach or collect must be reachable.
+        const std::vector<bool> everything = flood(level->map, level->spawn, true);
+        auto at = [&](const std::vector<bool>& reach, ge::Vec2 p) {
+            return reach[static_cast<std::size_t>(static_cast<int>(p.y) * level->map.width() + static_cast<int>(p.x))];
+        };
+        for (const ge::PickupSpawn& p : level->pickups) {
+            CHECK(at(everything, p.position));
+            if (p.kind == ge::PickupKind::Key) CHECK(at(before_locked, p.position));
         }
+        for (const ge::Vec2& t : level->target_spawns) CHECK(at(everything, t));  // unreachable targets make a level unwinnable
+        for (const ge::Vec2& e : level->enemy_spawns) CHECK(at(everything, e));
+        int locked = 0, keys = 0;
+        for (int y = 0; y < level->map.height(); ++y)
+            for (int x = 0; x < level->map.width(); ++x)
+                if (level->map.cell(x, y) == ge::kLockedDoorId) ++locked;
+        for (const ge::PickupSpawn& p : level->pickups) keys += p.kind == ge::PickupKind::Key ? 1 : 0;
+        CHECK(keys >= locked);  // one key opens one locked door
         game::GameApplication app(*level);
         ge::EngineConfig cfg;
         CHECK(app.initialize(cfg).ok);

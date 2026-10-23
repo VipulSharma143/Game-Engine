@@ -126,6 +126,57 @@ SoundBank SoundBank::make(int rate) {
     add_tone(b.ui, 0.0, 0.06, 1200.0, 0.6, 30.0);
     normalize_peak(b.ui, 0.5f);
 
+    b.hurt = make_sound("hurt", rate, 0.22);
+    {
+        Noise n(0x51AEu);
+        add_noise_burst(b.hurt, n, 0.0, 0.12, 0.6, 30.0);
+        add_tone(b.hurt, 0.0, 0.22, 140.0, 0.9, 14.0);
+        normalize_peak(b.hurt, 0.85f);
+    }
+
+    b.die = make_sound("die", rate, 0.95);
+    {
+        double phase = 0.0;
+        for (std::size_t i = 0; i < b.die.samples.size(); ++i) {
+            const double t = static_cast<double>(i) / rate;
+            phase += kTwoPi * (60.0 + 340.0 * std::exp(-t * 3.2)) / rate;  // falling pitch
+            b.die.samples[i] = static_cast<float>(std::sin(phase) * std::exp(-t * 2.2) * std::min(1.0, t / 0.004) * std::min(1.0, (0.95 - t) / 0.02));
+        }
+        normalize_peak(b.die, 0.8f);
+    }
+
+    b.pickup = make_sound("pickup", rate, 0.24);
+    add_tone(b.pickup, 0.00, 0.10, 880.0, 0.6, 12.0);
+    add_tone(b.pickup, 0.08, 0.16, 1320.0, 0.6, 10.0);
+    normalize_peak(b.pickup, 0.55f);
+
+    b.door = make_sound("door", rate, 0.5);
+    {
+        Noise n(0xD00Fu);
+        add_noise_burst(b.door, n, 0.0, 0.45, 0.25, 6.0);
+        double phase = 0.0;
+        for (std::size_t i = 0; i < b.door.samples.size(); ++i) {
+            const double t = static_cast<double>(i) / rate;
+            phase += kTwoPi * (50.0 + 40.0 * t) / rate;  // low rising rumble
+            b.door.samples[i] += static_cast<float>(0.7 * std::sin(phase) * std::exp(-t * 4.0) * std::min(1.0, t / 0.01) * std::min(1.0, (0.5 - t) / 0.03));
+        }
+        normalize_peak(b.door, 0.7f);
+    }
+
+    b.locked = make_sound("locked", rate, 0.3);
+    {
+        double phase = 0.0;
+        for (std::size_t i = 0; i < b.locked.samples.size(); ++i) {
+            const double t = static_cast<double>(i) / rate;
+            const double local = t < 0.14 ? t : t - 0.16;  // two short buzzes
+            if (local < 0.0 || local > 0.1) continue;
+            phase += kTwoPi * 150.0 / rate;
+            const double sq = std::sin(phase) > 0 ? 1.0 : -1.0;
+            b.locked.samples[i] = static_cast<float>(0.6 * sq * std::min(1.0, local / 0.003) * std::min(1.0, (0.1 - local) / 0.005));
+        }
+        normalize_peak(b.locked, 0.55f);
+    }
+
     return b;
 }
 

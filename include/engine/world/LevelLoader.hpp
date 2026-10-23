@@ -11,7 +11,8 @@
 //   1111111111
 //
 // Map characters: 1-9 wall ids ('#' = 1), '.' or ' ' empty, 'P' player spawn (exactly one),
-// 'T' target spawn (any number). The map must be at least 3x3, at most 128x128, rectangular,
+// 'T' target spawn, 'E' enemy spawn (wave N spawns the first N), 'H' health pack, 'A' ammo,
+// 'K' key, 'D' door, 'L' door that needs a key (any number of each). The map must be at least 3x3, at most 128x128, rectangular,
 // and its outer border must be solid.
 
 #include <filesystem>

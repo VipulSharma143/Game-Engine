@@ -17,6 +17,9 @@ struct HudData {
     double weapon_flash = 0.0;     // 0..1, recoil and muzzle flash
     double hit_marker = 0.0;       // 0..1, > 0 shows a red hit marker
     int score = 0;
+    int health = 100;
+    int max_health = 100;
+    int keys = 0;
     int wave = 1;
     int waves_to_win = 3;
     unsigned shots = 0;
@@ -39,5 +42,9 @@ void draw_hud(ge::Framebuffer& fb, const HudData& hud);
 void draw_menu_screen(ge::Framebuffer& fb, const HudData& hud);
 void draw_pause_screen(ge::Framebuffer& fb);
 void draw_victory_screen(ge::Framebuffer& fb, const HudData& hud);
+void draw_gameover_screen(ge::Framebuffer& fb, const HudData& hud);
+
+// Red flash over the whole view when the player is hit (amount 0..1).
+void tint_red(ge::Framebuffer& fb, double amount);
 
 }  // namespace game

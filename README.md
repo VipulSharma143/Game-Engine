@@ -43,6 +43,7 @@ On Debian/Ubuntu/Mint, building SDL3 from source needs the window-system headers
 | mouse, or arrows left-right | look |
 | left click or Space | fire |
 | R | reload |
+| E | open the door in front of you (a locked door uses up a key) |
 | F3 | debug overlay (FPS, entities, NASM or C++ backend) |
 | Tab | release / recapture the mouse |
 | Esc or P | pause (Esc again or Enter resumes, Q quits) |
@@ -53,12 +54,24 @@ Rendering is textured by default (procedural brick, stone, panel and plank walls
 Fog shading runs on a NASM AVX2 or SSE2 kernel when the CPU supports it (F3 shows which; `--fog-kernel scalar|sse2|avx2` forces one). All kernels give identical pixels; see `docs/PERFORMANCE.md` for the measured, modest speed-up.
 Headless options: `--headless --ppm out.ppm` saves the final frame; `--window --frames N` runs N frames.
 
+## Gameplay
+
+Red spheres are enemies. They stand still until they see you within about 9 cells, hear you fire, or get shot, then
+chase you around walls (they find routes through mazes and wait behind closed doors) and bite for 10 damage about once a
+second when close. Two shots kill one. You have 100 health; at 0 you get a "YOU DIED" screen and Enter retries
+the level from scratch. Diamonds are items: green health (+25, left alone if you are at full health), yellow ammo (refills
+the magazine), blue key (opens one locked steel door). Every third enemy you kill drops a health pack. A wave is cleared when
+all targets **and** all enemies are gone; clear the level's number of waves to win.
+
+`./start-all.sh` opens the `bunker` level by default (six rooms, doors, a locked vault, the key in the south-east room).
+Level markers: `E` enemy, `H` health, `A` ammo, `K` key, `D` door, `L` locked door (see `assets/levels/`).
+
 ## Levels, settings and key bindings
 
 - **Levels** are plain text files in `assets/levels/` (`hall`, `arena`, `maze` ship with the repo).
   `./start-all.sh -- --level arena` plays one, `--list-levels` lists them, and `--level path/to/file.txt` loads any file.
   Format: optional `name:`, `angle:` (degrees), `waves:` lines, then `map:` followed by rows. `1`-`9` are wall
-  textures, `.` is floor, `P` is the single player start, `T` is a preferred target spawn. The border must be solid.
+  textures, `.` is floor, `P` is the single player start, `T` a preferred target spawn, `E` an enemy, `H`/`A`/`K` pickups, `D`/`L` doors. The border must be solid.
   Mistakes are reported with the file and line (`row 12 has a different length`).
 - **Settings:** copy `assets/settings.ini` next to where you run the demo as `settings.ini` (or pass `--settings FILE`)
   to change resolution, FOV, mouse sensitivity, textures and every key binding (SDL key names, several per action

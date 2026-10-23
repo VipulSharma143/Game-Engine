@@ -17,6 +17,7 @@ struct Sprite {
     double size = 0.5;          // world-space diameter (1.0 = full wall height)
     std::uint32_t color = 0;    // base 0xAARRGGBB
     double flash = 0.0;         // 0..1 blend towards white (hit feedback)
+    bool diamond = false;       // draw a flat-shaded diamond (items) instead of a shaded sphere
 };
 
 // Camera-space projection of a point: depth along the view direction, and the screen column.

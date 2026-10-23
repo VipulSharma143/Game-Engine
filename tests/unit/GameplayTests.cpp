@@ -204,3 +204,23 @@ TEST(text_renderer_knows_every_character_the_game_prints) {
         if (c != ' ') CHECK(b.checksum() != a.checksum());
     }
 }
+
+TEST(diamond_sprites_leave_the_corners_empty_unlike_spheres_which_leave_less) {
+    const ge::Camera cam = ge::Camera::from_angle({0.0, 0.0}, 0.0, 66.0);
+    const std::vector<double> far_wall(100, 50.0);
+    auto fill_count = [&](bool diamond) {
+        ge::Framebuffer fb(100, 100);
+        fb.clear(ge::pack_rgb(0, 0, 0));
+        const std::array<ge::Sprite, 1> s = {{{{3.0, 0.0}, 1.0, ge::pack_rgb(200, 200, 200), 0.0, diamond}}};
+        ge::draw_sprites(cam, far_wall, s, fb);
+        int lit = 0;
+        for (int y = 0; y < 100; ++y)
+            for (int x = 0; x < 100; ++x) lit += fb.pixel(x, y) != ge::pack_rgb(0, 0, 0) ? 1 : 0;
+        return lit;
+    };
+    const int sphere = fill_count(false), diamond = fill_count(true);
+    CHECK(diamond > 0);
+    // Area ratio: a diamond covers half its bounding square, a disc about pi/4 of it.
+    CHECK(diamond < sphere);
+    CHECK(static_cast<double>(diamond) / sphere > 0.55 && static_cast<double>(diamond) / sphere < 0.8);
+}

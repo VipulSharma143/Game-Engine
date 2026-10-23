@@ -12,6 +12,7 @@
 #include "engine/world/MotionBatch.hpp"
 #include "engine/world/World.hpp"
 #include "engine/world/WorldSystem.hpp"
+#include "game/Enemy.hpp"
 #include "game/GameEvents.hpp"
 #include "game/PlayerController.hpp"
 #include "game/WeaponSystem.hpp"
@@ -55,11 +56,22 @@ public:
     unsigned shots_fired() const noexcept { return shots_; }
     unsigned shots_hit() const noexcept { return hits_; }
     unsigned targets_destroyed() const noexcept { return kills_; }
-    // Test hook: replace all targets with one stationary target at `position`.
+    std::size_t enemy_count() const noexcept { return enemies_.size(); }
+    std::size_t pickup_count() const noexcept { return pickups_.size(); }
+    ge::Vec2 enemy_position(std::size_t i) const;
+    EnemyState enemy_state(std::size_t i) const;
+    unsigned enemies_killed() const noexcept { return enemy_kills_; }
+    int player_health() const noexcept { return player_.health; }
+    int player_keys() const noexcept { return player_.keys; }
+
+    // Test hooks. place_single_target replaces all targets AND enemies with one stationary target.
     void place_single_target(ge::Vec2 position);
+    void place_enemy(ge::Vec2 position);
+    void place_pickup(ge::PickupKind kind, ge::Vec2 position);
 
 private:
     ge::Level level_;
+    ge::Level initial_level_;          // pristine copy: restart() restores doors and pickups from it
     Player player_;
     ge::TextureSet textures_;
     ge::Renderer renderer_;
@@ -67,6 +79,14 @@ private:
     ge::MotionBatch motion_;
     std::vector<ge::Entity> targets_;  // targets_[i] <-> motion_ point i <-> flash_[i]
     std::vector<double> flash_;
+    std::vector<ge::Entity> enemies_;  // Transform + Health + Collider + Enemy
+    std::vector<ge::Entity> pickups_;  // Transform + Pickup
+    DistanceField field_;              // distances to the player's cell, for enemy pathing
+    unsigned map_version_ = 0;         // bumped when a door opens
+    unsigned field_version_ = ~0u;
+    double hurt_flash_ = 0.0;
+    double alert_timer_ = 0.0;         // > 0: gunfire was heard, idle enemies wake up
+    unsigned enemy_kills_ = 0;
     std::vector<ge::Sprite> sprites_;  // reused every frame
     Weapon weapon_;
     ge::EventBus events_;
@@ -86,6 +106,14 @@ private:
     double frame_ms_ = 0.0;
 
     void start_wave(int wave);
+    void spawn_level_content();        // pickups from the level
+    void spawn_enemies(int wave);
+    void update_enemies(double dt);
+    void update_pickups();
+    void try_use_door();
+    void damage_player(int amount);
+    void kill_enemy(std::size_t index);
+    void remove_pickup(std::size_t index);
     void spawn_targets(std::size_t wanted, double speed_scale);
     void fire_shot();
     void kill_target(std::size_t index);

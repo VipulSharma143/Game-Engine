@@ -14,6 +14,9 @@ struct Player {
     double move_speed = 3.0;      // cells per second
     double turn_speed = 2.2;      // radians per second
     double mouse_sensitivity = 0.0025;  // radians per pixel of mouse motion
+    int health = 100;
+    int max_health = 100;
+    int keys = 0;                 // collected keys; one opens one locked door
 };
 
 // Applies one fixed-step of input to the player: turning, strafing and walking

@@ -106,6 +106,10 @@ int main(int argc, char** argv) {
             return 1;
         }
         level = std::move(*loaded);
+    } else if (resources && config.mode != ge::RunMode::Headless && ge::window_platform_compiled() && ge::display_available()) {
+        // Playing in a window with no --level: start the showcase level when the assets are installed.
+        std::string ignored;
+        if (auto bunker = resources->load_level("bunker", ignored)) level = std::move(*bunker);
     }
 
     // ---- choose window or headless -------------------------------------------------------
@@ -206,5 +210,7 @@ int main(int argc, char** argv) {
     }
     std::printf("game: wave=%d score=%d shots=%u hits=%u destroyed=%u ammo=%d/%d\n", app.wave(), app.score(),
                 app.shots_fired(), app.shots_hit(), app.targets_destroyed(), app.weapon().ammo, app.weapon().magazine);
+    std::printf("player: health=%d keys=%d, enemies alive=%zu killed=%u, pickups left=%zu\n", app.player_health(), app.player_keys(),
+                app.enemy_count(), app.enemies_killed(), app.pickup_count());
     return 0;
 }

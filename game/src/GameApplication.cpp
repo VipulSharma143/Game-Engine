@@ -5,6 +5,7 @@
 #include "engine/core/Time.hpp"
 #include "engine/optimized/OptimizedRoutines.hpp"
 #include "game/Hud.hpp"
+#include "game/Components.hpp"
 
 namespace game {
 
@@ -12,13 +13,14 @@ namespace {
 constexpr double kTargetRadius = 0.2;      // collider radius; the drawn sphere is 2.5x that in diameter
 constexpr double kHitRadiusScale = 1.25;   // shots hit the visible sphere, not just the collider
 constexpr int kPointsPerKill = 100;
+constexpr int kPointsPerEnemy = 150;
 constexpr int kPointsPerWaveBonus = 250;
 constexpr double kBetweenWaves = 2.0;
 constexpr double kFeedSeconds = 2.5;
 constexpr std::size_t kMaxFeed = 4;
 }  // namespace
 
-GameApplication::GameApplication(ge::Level level) : level_(std::move(level)) {
+GameApplication::GameApplication(ge::Level level) : level_(std::move(level)), initial_level_(level_) {
     player_.position = level_.spawn;
     player_.angle = level_.spawn_angle;
     subscribe_feed();
@@ -48,6 +50,7 @@ ge::Status GameApplication::initialize(const ge::EngineConfig& config) {
     }
     start_in_menu_ = config.start_in_menu;
     state_ = start_in_menu_ ? GameState::Menu : GameState::Playing;
+    spawn_level_content();
     start_wave(1);
     return ge::Status::success();
 }
@@ -61,8 +64,18 @@ void GameApplication::set_state(GameState next) {
 
 void GameApplication::restart() {
     while (!targets_.empty()) kill_target(targets_.size() - 1);
+    while (!enemies_.empty()) kill_enemy(enemies_.size() - 1);
+    while (!pickups_.empty()) remove_pickup(pickups_.size() - 1);
+    level_ = initial_level_;  // closed doors again
+    ++map_version_;
+    const double sensitivity = player_.mouse_sensitivity;
+    player_ = Player{};
+    player_.mouse_sensitivity = sensitivity;
     player_.position = level_.spawn;
     player_.angle = level_.spawn_angle;
+    hurt_flash_ = alert_timer_ = 0.0;
+    enemy_kills_ = 0;
+    spawn_level_content();
     weapon_ = Weapon{};
     score_ = 0;
     shots_ = hits_ = kills_ = 0;
@@ -75,7 +88,8 @@ void GameApplication::start_wave(int wave) {
     wave_ = wave;
     between_waves_ = false;
     spawn_targets(static_cast<std::size_t>(6 + 2 * wave), 1.0 + 0.15 * (wave - 1));
-    events_.publish(WaveStarted{wave, targets_.size()});
+    spawn_enemies(wave);
+    events_.publish(WaveStarted{wave, targets_.size() + enemies_.size()});
 }
 
 void GameApplication::spawn_targets(std::size_t wanted, double speed_scale) {
@@ -113,6 +127,7 @@ void GameApplication::spawn_targets(std::size_t wanted, double speed_scale) {
 
 void GameApplication::place_single_target(ge::Vec2 position) {
     while (!targets_.empty()) kill_target(targets_.size() - 1);
+    while (!enemies_.empty()) kill_enemy(enemies_.size() - 1);
     kills_ = 0;
     score_ = 0;
     const ge::Entity e = entities_.create();
@@ -136,16 +151,44 @@ void GameApplication::kill_target(std::size_t i) {
 
 void GameApplication::fire_shot() {
     ++shots_;
+    alert_timer_ = 0.6;  // gunfire wakes idle enemies
     events_.publish(ShotFired{weapon_.ammo});
+    // Shot targets: drifting targets first, then enemies.
     std::vector<ShotTarget> shot_targets;
-    shot_targets.reserve(targets_.size());
+    shot_targets.reserve(targets_.size() + enemies_.size());
     for (std::size_t i = 0; i < targets_.size(); ++i) shot_targets.push_back({motion_.position(i), kTargetRadius * kHitRadiusScale});
+    for (ge::Entity e : enemies_) {
+        const auto* t = entities_.get<ge::Transform>(e);
+        const auto* en = entities_.get<Enemy>(e);
+        shot_targets.push_back({t->position, en->radius});
+    }
 
     const ShotResult r = hitscan(level_.map, player_.position, player_.angle, shot_targets);
     if (r.target < 0) return;
-    const auto i = static_cast<std::size_t>(r.target);
     ++hits_;
     hit_marker_ = 0.15;
+
+    if (static_cast<std::size_t>(r.target) >= targets_.size()) {  // an enemy
+        const std::size_t ei = static_cast<std::size_t>(r.target) - targets_.size();
+        auto* en = entities_.get<Enemy>(enemies_[ei]);
+        auto* hp = entities_.get<ge::Health>(enemies_[ei]);
+        const ge::Vec2 where = entities_.get<ge::Transform>(enemies_[ei])->position;
+        en->flash = 1.0;
+        if (en->state == EnemyState::Idle) en->state = EnemyState::Chase;  // being shot wakes it up
+        hp->current -= weapon_.damage;
+        const bool killed = hp->dead();
+        events_.publish(TargetHit{where, weapon_.damage, killed});
+        if (killed) {
+            ++enemy_kills_;
+            score_ += kPointsPerEnemy;
+            kill_enemy(ei);
+            events_.publish(EnemyKilled{where, kPointsPerEnemy});
+            if (enemy_kills_ % 3 == 0) place_pickup(ge::PickupKind::Health, where);  // every third kill drops health
+        }
+        return;
+    }
+
+    const auto i = static_cast<std::size_t>(r.target);
     flash_[i] = 1.0;
     const ge::Vec2 where = motion_.position(i);
     bool killed = false;
@@ -190,6 +233,7 @@ void GameApplication::fixed_update(const ge::InputState& input, double dt) {
             else if (input.pause || input.confirm) set_state(GameState::Playing);
             break;
         case GameState::Victory:
+        case GameState::GameOver:
             if (input.menu_quit) set_state(GameState::Quit);
             else if (input.confirm) { restart(); set_state(GameState::Playing); }
             break;
@@ -200,18 +244,25 @@ void GameApplication::fixed_update(const ge::InputState& input, double dt) {
 
 void GameApplication::update_playing(const ge::InputState& input, double dt) {
     update_player(player_, input, level_.map, dt);
+    if (input.use) try_use_door();
 
     const bool was_reloading = weapon_.reloading();
     if (weapon_step(weapon_, input.fire, input.reload, dt)) fire_shot();
     if (!was_reloading && weapon_.reloading()) events_.publish(ReloadStarted{});
     hit_marker_ = std::max(0.0, hit_marker_ - dt);
+    hurt_flash_ = std::max(0.0, hurt_flash_ - dt * 2.5);
     for (double& f : flash_) f = std::max(0.0, f - dt * 5.0);
 
     motion_.step(dt, level_.map);
     for (std::size_t i = 0; i < targets_.size(); ++i)
         if (auto* t = entities_.get<ge::Transform>(targets_[i])) t->position = motion_.position(i);
 
-    if (targets_.empty()) {
+    update_enemies(dt);
+    if (state_ != GameState::Playing) return;  // the player died this step
+    update_pickups();
+    alert_timer_ = std::max(0.0, alert_timer_ - dt);
+
+    if (targets_.empty() && enemies_.empty()) {
         if (!between_waves_) {
             between_waves_ = true;
             wave_timer_ = kBetweenWaves;
@@ -241,7 +292,24 @@ void GameApplication::render(ge::Framebuffer& target) {
         sprites_.push_back({motion_.position(i), kTargetRadius * 2.5,
                             ge::pack_rgb(lerp(255, 60), lerp(120, 220), lerp(40, 230)), flash_[i]});
     }
+    for (ge::Entity e : enemies_) {
+        const auto* t = entities_.get<ge::Transform>(e);
+        const auto* en = entities_.get<Enemy>(e);
+        const auto* hp = entities_.get<ge::Health>(e);
+        const double frac = static_cast<double>(hp->current) / static_cast<double>(hp->max);
+        const unsigned base = en->state == EnemyState::Idle ? 130u : 255u;  // calm = dark red, hunting = bright red
+        sprites_.push_back({t->position, 0.65, ge::pack_rgb(base, static_cast<unsigned>(40 + 50 * frac), 40), en->flash});
+    }
+    for (ge::Entity e : pickups_) {
+        const auto* t = entities_.get<ge::Transform>(e);
+        const auto* pk = entities_.get<Pickup>(e);
+        const std::uint32_t colour = pk->kind == ge::PickupKind::Health ? ge::pack_rgb(60, 230, 90)
+                                     : pk->kind == ge::PickupKind::Ammo ? ge::pack_rgb(240, 210, 60)
+                                                                         : ge::pack_rgb(80, 160, 255);
+        sprites_.push_back({t->position, 0.34, colour, 0.0, true});
+    }
     ge::draw_sprites(cam, renderer_.depth(), sprites_, target);
+    if (hurt_flash_ > 0.0) tint_red(target, hurt_flash_);
 
     // Frame timing is only used by the optional debug overlay.
     const double now = ge::monotonic_seconds();
@@ -258,7 +326,6 @@ void GameApplication::render(ge::Framebuffer& target) {
     hud.score = score_;
     hud.wave = wave_;
     hud.waves_to_win = level_.waves_to_win;
-    hud.targets_left = static_cast<int>(targets_.size());
     hud.between_waves = between_waves_ && state_ != GameState::Victory;  // the win screen replaces the banner
     hud.debug = debug_;
     hud.frame_ms = frame_ms_;
@@ -266,6 +333,10 @@ void GameApplication::render(ge::Framebuffer& target) {
     hud.entities = entities_.size();
     hud.backend = ge::opt::fog_kernel_name(ge::opt::active_fog_kernel());
     hud.level_name = level_.name.c_str();
+    hud.health = player_.health;
+    hud.max_health = player_.max_health;
+    hud.keys = player_.keys;
+    hud.targets_left = static_cast<int>(targets_.size() + enemies_.size());
     for (const FeedMessage& m : feed_) hud.feed.push_back(m.text);
 
     draw_weapon_view(target, weapon_.flash, weapon_.reloading());
@@ -274,6 +345,9 @@ void GameApplication::render(ge::Framebuffer& target) {
     switch (state_) {
         case GameState::Menu: draw_menu_screen(target, hud); break;
         case GameState::Paused: draw_pause_screen(target); break;
+        case GameState::GameOver:
+            draw_gameover_screen(target, hud);
+            break;
         case GameState::Victory:
             hud.shots = shots_;
             hud.hits = hits_;

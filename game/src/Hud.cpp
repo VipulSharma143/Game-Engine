@@ -1,5 +1,6 @@
 #include "game/Hud.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <string>
 
@@ -63,6 +64,21 @@ void draw_hud(ge::Framebuffer& fb, const HudData& d) {
 
     std::snprintf(buf, sizeof buf, "SCORE %05d", d.score);
     ge::draw_text_shadowed(fb, w - ge::text_width(buf) - 4, 4, buf, white);
+
+    // Health bar above the ammo line.
+    {
+        const int bar_w = 60;
+        const int filled = d.max_health > 0 ? std::clamp(d.health * bar_w / d.max_health, 0, bar_w) : 0;
+        const std::uint32_t colour = d.health > 50 ? ge::pack_rgb(80, 220, 90) : d.health > 25 ? ge::pack_rgb(240, 200, 60) : ge::pack_rgb(240, 60, 50);
+        std::snprintf(buf, sizeof buf, "HEALTH %d", d.health);
+        ge::draw_text_shadowed(fb, 4, h - 34, buf, colour);
+        fill_rect(fb, 4, h - 24, 4 + bar_w, h - 20, ge::pack_rgb(40, 40, 40));
+        fill_rect(fb, 4, h - 24, 4 + filled, h - 20, colour);
+    }
+    if (d.keys > 0) {
+        std::snprintf(buf, sizeof buf, "KEYS %d", d.keys);
+        ge::draw_text_shadowed(fb, (w - ge::text_width(buf)) / 2, 4, buf, ge::pack_rgb(110, 180, 255));
+    }
 
     if (d.reloading) {
         ge::draw_text_shadowed(fb, 4, h - 12, "RELOADING", red);
@@ -143,6 +159,23 @@ void draw_victory_screen(ge::Framebuffer& fb, const HudData& d) {
     centered(fb, h / 2 + 8, buf, ge::pack_rgb(190, 230, 255));
     centered(fb, h * 3 / 4 - 6, "ENTER PLAY AGAIN", ge::pack_rgb(120, 255, 120));
     centered(fb, h * 3 / 4 + 6, "Q QUIT", ge::pack_rgb(200, 200, 200));
+}
+
+void draw_gameover_screen(ge::Framebuffer& fb, const HudData& d) {
+    dim(fb, 35);
+    const int h = fb.height();
+    centered(fb, h / 5, "YOU DIED", ge::pack_rgb(255, 70, 60), 3);
+    char buf[64];
+    std::snprintf(buf, sizeof buf, "SCORE %05d  WAVE %d", d.score, d.wave);
+    centered(fb, h / 2 - 6, buf, ge::pack_rgb(235, 235, 235), 1);
+    centered(fb, h * 3 / 4 - 6, "ENTER TRY AGAIN", ge::pack_rgb(120, 255, 120));
+    centered(fb, h * 3 / 4 + 6, "Q QUIT", ge::pack_rgb(200, 200, 200));
+}
+
+void tint_red(ge::Framebuffer& fb, double amount) {
+    const unsigned add = static_cast<unsigned>(std::clamp(amount, 0.0, 1.0) * 110.0);
+    for (std::uint32_t& px : fb.pixels())
+        px = ge::pack_rgb(std::min(255u, ge::red_of(px) + add), ge::green_of(px) * (200u - add / 2) / 200u, ge::blue_of(px) * (200u - add / 2) / 200u);
 }
 
 }  // namespace game

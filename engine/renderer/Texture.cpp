@@ -94,6 +94,25 @@ void make_planks(Texture& t, Rgb base, std::uint32_t seed) {
         }
 }
 
+// Door: vertical planks inside a dark frame with a handle; the locked variant is steel with a
+// hazard stripe and a keyhole.
+void make_door(Texture& t, bool locked, std::uint32_t seed) {
+    const Rgb wood = locked ? Rgb{150, 150, 160} : Rgb{150, 100, 55};
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const bool frame = x < 4 || x >= 60 || y < 4 || y >= 60;
+            if (frame) { t.set(x, y, tint({60, 60, 62}, 100, noise_at(x, y, seed, 6))); continue; }
+            const bool seam = locked ? ((y - 4) % 14) == 0 : ((x - 4) % 14) == 0;
+            const bool stripe = locked && y >= 28 && y < 36 && ((x + y) / 6) % 2 == 0;
+            const bool handle = !locked && x >= 48 && x < 52 && y >= 28 && y < 38;
+            const bool keyhole = locked && ((x >= 30 && x < 34 && y >= 38 && y < 41) || (x >= 31 && x < 33 && y >= 41 && y < 47));
+            if (handle) { t.set(x, y, pack_rgb(220, 200, 90)); continue; }
+            if (keyhole) { t.set(x, y, pack_rgb(15, 15, 18)); continue; }
+            if (stripe) { t.set(x, y, pack_rgb(210, 60, 50)); continue; }
+            t.set(x, y, seam ? tint(wood, 55) : tint(wood, 100, noise_at(x, y, seed + 1, 12)));
+        }
+}
+
 void make_floor(Texture& t, Rgb base, std::uint32_t seed) {
     for (int y = 0; y < Texture::kSize; ++y)
         for (int x = 0; x < Texture::kSize; ++x) {
@@ -130,6 +149,8 @@ TextureSet TextureSet::make_procedural() {
     make_blocks(s.walls_[7], {225, 225, 230}, 7);
     make_panel(s.walls_[8], {225, 140, 55}, 8);
     make_planks(s.walls_[9], {150, 100, 55}, 9);
+    make_door(s.walls_[10], false, 10);
+    make_door(s.walls_[11], true, 11);
     make_floor(s.floors_[0], {105, 100, 95}, 20);
     make_floor(s.floors_[1], {80, 78, 76}, 21);
     make_ceiling(s.ceiling_, {55, 62, 88}, 30);

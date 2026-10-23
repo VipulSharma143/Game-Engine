@@ -70,6 +70,8 @@ ge_link_sdl(ge_engine)
 add_library(ge_game STATIC
   game/src/DemoTour.cpp
   game/src/GameApplication.cpp
+  game/src/GameApplicationWorld.cpp
+  game/src/Enemy.cpp
   game/src/Hud.cpp
   game/src/GameAudio.cpp
   game/src/PlayerController.cpp
