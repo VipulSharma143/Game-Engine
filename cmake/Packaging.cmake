@@ -15,3 +15,22 @@ else()
 endif()
 set(CPACK_PACKAGE_CHECKSUM SHA256)
 include(CPack)
+
+# A shared SDL3 (system package or -DCMAKE_PREFIX_PATH) must travel with the package, or the unpacked
+# demo would not start on a machine without it. A static SDL3 (GE_SDL=FETCH) needs nothing.
+if(GE_SDL_ENABLED)
+  set(_ge_sdl_target SDL3::SDL3)
+  get_target_property(_ge_sdl_alias SDL3::SDL3 ALIASED_TARGET)  # SDL3::SDL3 is an alias of the shared or static target
+  if(_ge_sdl_alias)
+    set(_ge_sdl_target ${_ge_sdl_alias})
+  endif()
+  get_target_property(_ge_sdl_imported ${_ge_sdl_target} IMPORTED)
+  get_target_property(_ge_sdl_type ${_ge_sdl_target} TYPE)
+  if(_ge_sdl_imported AND _ge_sdl_type STREQUAL "SHARED_LIBRARY")
+    install(IMPORTED_RUNTIME_ARTIFACTS ${_ge_sdl_target} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    if(NOT WIN32)
+      set_target_properties(ge_demo PROPERTIES INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+    endif()
+  endif()
+endif()

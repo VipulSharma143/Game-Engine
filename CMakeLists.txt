@@ -19,6 +19,13 @@ option(GE_BUILD_TOOLS "Build developer tools (benchmark runner)" ON)
 option(GE_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 set(GE_SANITIZE "" CACHE STRING "Sanitizers for GCC/Clang, e.g. address;undefined")
 
+# MSVC: link the C/C++ runtime statically so the .exe runs on a PC without the Visual C++
+# redistributable (SDL3, built by FetchContent, follows the same setting).
+option(GE_STATIC_CRT "MSVC: link the C++ runtime statically" ON)
+if(MSVC AND GE_STATIC_CRT)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 include(PlatformConfig)
 include(CompilerWarnings)
 include(AssemblyConfig)
@@ -88,9 +95,12 @@ target_link_libraries(ge_demo PRIVATE ge_game)
 ge_enable_warnings(ge_demo)
 ge_enable_sanitizers(ge_demo)
 if(WIN32 AND GE_SDL_ENABLED)
-  # Put SDL3.dll next to ge-demo.exe when SDL3 is a shared library.
-  add_custom_command(TARGET ge_demo POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                     $<TARGET_RUNTIME_DLLS:ge_demo> $<TARGET_FILE_DIR:ge_demo> COMMAND_EXPAND_LISTS)
+  # Put SDL3.dll next to ge-demo.exe when SDL3 is a shared library. With a static SDL3 (GE_SDL=FETCH)
+  # the DLL list is empty, and "copy" with no files would fail, so the command becomes "true" then.
+  add_custom_command(TARGET ge_demo POST_BUILD
+                     COMMAND ${CMAKE_COMMAND} -E $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:ge_demo>>,copy,true>
+                             $<TARGET_RUNTIME_DLLS:ge_demo> $<TARGET_FILE_DIR:ge_demo>
+                     COMMAND_EXPAND_LISTS)
 endif()
 
 # ---- tests, tools, install ----------------------------------------------------

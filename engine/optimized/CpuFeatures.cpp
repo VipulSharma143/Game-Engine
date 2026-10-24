@@ -5,7 +5,8 @@
 #if defined(__x86_64__) || defined(_M_X64)
 #define GE_X86_64 1
 #if defined(_MSC_VER)
-#include <intrin.h>
+#include <immintrin.h>  // _xgetbv
+#include <intrin.h>   // __cpuidex
 #else
 #include <cpuid.h>
 #endif

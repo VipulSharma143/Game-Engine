@@ -1,0 +1,16 @@
+# Normalise line endings. Shell scripts, NASM sources and CMake files must keep LF even when checked
+# out on Windows, or bash and NASM fail with stray carriage returns.
+* text=auto
+*.sh text eol=lf
+*.asm text eol=lf
+*.inc text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+CMakePresets.json text eol=lf
+*.yml text eol=lf
+*.ini text eol=lf
+assets/levels/*.txt text eol=lf
+*.png binary
+*.wav binary
+*.zip binary
+*.gz binary

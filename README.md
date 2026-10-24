@@ -88,6 +88,20 @@ control it. If no audio device can be opened the game continues silently and say
 Headless runs can render the audio to a file instead of a speaker: `./start-all.sh --no-build -- --headless --wav demo.wav`
 writes the demo's sound track (16-bit stereo, 44.1 kHz), so you can hear what the scripted run triggers.
 
+## CI/CD (GitHub Actions)
+
+`.github/workflows/ci.yml` builds, tests and packages on Linux and Windows for every push and pull request, and publishes a
+GitHub Release with both packages and checksums when you push a tag such as `v0.1.0`. See `docs/CI_CD.md`.
+
+## Making a release package
+
+`./build.sh --release --sdl fetch --package` writes `build/release/game-engine-demo-<version>-linux-x86_64.tar.gz` and a
+`.sha256` file next to it. Unpack it anywhere and run `bin/ge-demo` (it finds its levels in `share/game-engine/assets`).
+With `--sdl fetch` SDL3 is linked in statically, so the package needs no extra libraries; with a system or prefix SDL3 the
+shared library is copied into `lib/` and found through the binary's RPATH. The package depends on the C library of the
+machine it was built on, so build on the oldest distribution you want to support. Verify a download with
+`sha256sum -c game-engine-demo-*.tar.gz.sha256`. A Windows ZIP has to be built on Windows (or a Windows CI runner).
+
 ## Prerequisites
 
 - A C++20 compiler (verified: GCC 13.3 on Ubuntu 24.04)

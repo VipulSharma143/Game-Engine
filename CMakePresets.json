@@ -36,6 +36,25 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
+      "name": "windows-release",
+      "displayName": "Windows MSVC Release (Ninja, SDL3 fetched, static runtime)",
+      "inherits": "base",
+      "generator": "Ninja",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "GE_SDL": "FETCH"
+      }
+    },
+    {
+      "name": "windows-debug",
+      "displayName": "Windows MSVC Debug (Ninja, SDL3 fetched, static runtime)",
+      "inherits": "windows-release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
       "name": "no-asm",
       "displayName": "Release without assembly (Unix Makefiles)",
       "inherits": "release",
@@ -53,6 +72,8 @@
     { "name": "release", "configurePreset": "release" },
     { "name": "ninja-debug", "configurePreset": "ninja-debug" },
     { "name": "ninja-release", "configurePreset": "ninja-release" },
+    { "name": "windows-release", "configurePreset": "windows-release" },
+    { "name": "windows-debug", "configurePreset": "windows-debug" },
     { "name": "no-asm", "configurePreset": "no-asm" },
     { "name": "asan", "configurePreset": "asan" }
   ],

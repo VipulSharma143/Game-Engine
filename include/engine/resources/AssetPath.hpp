@@ -12,7 +12,8 @@ namespace ge {
 bool looks_like_assets_dir(const std::filesystem::path& dir);
 
 // Candidate directories in priority order: $GE_ASSETS, ./assets, <exe>/assets, <exe>/../assets,
-// <exe>/../../assets, <exe>/../../../assets (covers build/<config>/ and an install prefix).
+// <exe>/../share/game-engine/assets (an unpacked release package), <exe>/../../assets,
+// <exe>/../../../assets (covers build/<config>/).
 std::vector<std::filesystem::path> asset_dir_candidates(const std::filesystem::path& executable);
 
 std::optional<std::filesystem::path> find_assets_dir(const std::filesystem::path& executable);

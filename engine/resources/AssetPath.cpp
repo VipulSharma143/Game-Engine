@@ -19,6 +19,7 @@ std::vector<fs::path> asset_dir_candidates(const fs::path& executable) {
     fs::path dir = executable.has_parent_path() ? executable.parent_path() : fs::path(".");
     dir = fs::absolute(dir, ec);
     out.push_back(dir / "assets");
+    out.push_back(dir / ".." / "share" / "game-engine" / "assets");  // installed / unpacked package layout
     out.push_back(dir / ".." / "assets");
     out.push_back(dir / ".." / ".." / "assets");
     out.push_back(dir / ".." / ".." / ".." / "assets");
