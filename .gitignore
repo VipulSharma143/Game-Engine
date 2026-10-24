@@ -19,5 +19,7 @@ Thumbs.db
 # Packaging
 _CPack_Packages/
 *.tar.gz
+*.deb
+GameEngine-Setup.exe
 *.sha256
 out/

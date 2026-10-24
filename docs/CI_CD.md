@@ -1,40 +1,66 @@
 # CI/CD and releases
 
-The pipeline is `.github/workflows/ci.yml`. Every build step is a call to `./build.sh`, so CI runs the same commands
-as a developer machine.
+One workflow, `.github/workflows/ci.yml`. Every build step is a call to `./build.sh`, so CI runs the same commands as a
+developer machine.
 
 | Job | Runs on | What it does |
 | --- | --- | --- |
-| `linux` | ubuntu-24.04 | `./build.sh --release --sdl fetch --werror --package`: builds with a statically linked SDL3, runs all tests, creates `game-engine-demo-<version>-linux-x86_64.tar.gz` + `.sha256`, unpacks it in an empty environment and runs it |
-| `linux-checks` | ubuntu-24.04 | Debug with AddressSanitizer + UBSan, and Release without assembly (C++ fallbacks only), both `--werror` |
-| `windows` | windows-latest | MSVC x64 + NASM: `./build.sh --release --sdl fetch --package` (static runtime, static SDL3), tests, creates `game-engine-demo-<version>-windows-AMD64.zip` + `.sha256`, unpacks it and runs it |
-| `release` | ubuntu-24.04 | Only for tags `v*`, after the three jobs above pass: checks the tag matches the CMake version, merges the checksums into `SHA256SUMS.txt`, and publishes a GitHub Release with both packages |
+| `linux` | ubuntu-24.04 | changelog checks; `./build.sh --release --sdl fetch --werror --package` (build, 17 tests, `.deb`); installs the `.deb` and runs it from `/` with an empty environment |
+| `windows` | windows-latest | MSVC x64 + NASM + Inno Setup: `./build.sh --release --sdl fetch --package` (build, tests, `GameEngine-Setup.exe`); silently installs it, checks the Start Menu shortcut, runs the installed demo, uninstalls |
+| `release` | ubuntu-24.04 | Tags only, and only after both jobs passed: checks the tag is on `main`, matches `CMakeLists.txt` and has a dated changelog entry, that no release for it exists, then publishes **one** release with `GameEngine-Setup.exe`, `game-engine-demo_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, using the changelog entry as notes |
 
-Pushes to `main`/`master`, pull requests and manual runs (Actions tab -> CI -> Run workflow) build and test; the packages are
-kept for 90 days as workflow artifacts.
+Triggers: pushes and pull requests to `main`, and tags `vX.Y.Z`. Newer pushes cancel older runs of the same ref; release
+runs are never cancelled. The release commit made by `release.sh` is skipped on the branch run because the tag run builds it.
+Permissions are `contents: read`, except the `release` job (`contents: write`, built-in `GITHUB_TOKEN`, no secrets).
+Packages from ordinary runs are kept 7 days as workflow artifacts and never published.
+
+The SDL3 build is about 60% of a clean build, so each build job caches `build/release` (key: runner image version +
+hash of `cmake/Dependencies.cmake`). Changed sources rebuild; SDL3 does not. Local simulation: 194 s -> 110 s on one core.
+
+## Version and changelog
+
+- The version is `project(GameEngine VERSION x.y.z ...)` in `CMakeLists.txt`. Package names, the installer, the release
+  title and the tag all derive from or are checked against it.
+- `CHANGELOG.md`: the two newest releases (and at most one `## [X.Y.Z] - Unreleased` entry on top). `ARCHIVE_CHANGELOG.md`:
+  older releases, newest first. Format: `## [X.Y.Z] - YYYY-MM-DD`, then `### Features`, `### Improvements`, `### Bug Fixes`,
+  `### Breaking Changes` (only those that apply), each with bullet points.
+- `python3 tools/changelog.py sync` moves older releases to the archive unchanged; `check [--tag vX.Y.Z]` validates and
+  changes nothing; `release X.Y.Z` stamps today's date on the Unreleased entry; `notes X.Y.Z` prints the release notes.
+  It fails with a clear message on bad headings, duplicate or misordered versions, or a version different from `CMakeLists.txt`,
+  and refuses to write if anything could be lost. Running it again changes nothing. Tests: `python3 tools/test_changelog.py`.
 
 ## Publishing a release
 
-1. Set the version in `CMakeLists.txt` (`project(GameEngine VERSION x.y.z ...)`) and commit.
-2. `git tag vx.y.z && git push origin vx.y.z`
-3. When the run finishes, the Releases page has `game-engine-demo-x.y.z-linux-x86_64.tar.gz`, `...-windows-AMD64.zip`, a `.sha256`
-   file for each, and `SHA256SUMS.txt`. If the tag and the CMake version differ, the release job stops with an error.
+1. Commit your work to `main`. Add `## [X.Y.Z] - Unreleased` with categorized notes at the top of `CHANGELOG.md`
+   (this file may stay uncommitted; any other uncommitted file stops the release).
+2. `./release.sh X.Y.Z --dry-run` shows every change and plan without touching anything.
+3. `./release.sh X.Y.Z` validates, bumps `CMakeLists.txt`, stamps the date, syncs the changelogs, shows the diff and the notes,
+   and waits for you to type the tag name. Then it commits `chore(release): vX.Y.Z`, creates the annotated tag and runs
+   `git push --atomic origin main vX.Y.Z`. It uses your existing Git/GitHub authentication; no token is stored.
+4. Watch the run on the Actions tab. When it is green the Releases page has the three files.
 
-No secrets are needed: the release job uses the built-in `GITHUB_TOKEN` with `contents: write`. If the repository or organisation
-restricts workflow permissions, allow "Read and write permissions" under Settings -> Actions -> General.
+## Recovery
 
-## Windows status
+Nothing is ever deleted or overwritten automatically.
 
-The Windows job was written without a Windows machine and has **not been run yet**. Expect the first run to need small fixes
-(missing includes under MSVC, warnings, path details). Send the failing step's log and it can be fixed quickly. Warnings are
-deliberately not errors on Windows until the first run is clean; add `--werror` to that step afterwards.
+- **Rejected for an existing tag/release:** `vX.Y.Z` already exists on GitHub. Pick the next version. Never move or delete a published tag.
+- **Push failed** (network, authentication, branch protection): the commit and tag exist locally and nothing was
+  published. Fix the cause and run `./release.sh X.Y.Z` again: it sees the finished local commit/tag and only pushes.
+  If `main` moved on origin meanwhile: `git tag -d vX.Y.Z && git pull --rebase`, then `./release.sh X.Y.Z` again (it
+  re-creates the tag on the rebased release commit).
+- **Commit made, tag missing:** run `./release.sh X.Y.Z` again; it creates the tag and pushes.
+- **Tag pushed but the workflow failed** (nothing published): fix the problem on `main` and release the next patch version
+  (a tag is never re-used), or, if the cause was a flaky runner, use "Re-run all jobs" on the tag's run.
+- **Release job failed halfway:** if a release exists with missing files, delete that release in the GitHub UI yourself
+  (keep the tag), then re-run the tag's workflow. The workflow refuses to publish while a release for the tag exists.
+- **Changelog errors:** run `python3 tools/changelog.py check`; the message names the file, line and problem.
 
-The `.exe` links the C++ runtime and SDL3 statically (`GE_STATIC_CRT`, `GE_SDL=FETCH`), so it needs no Visual C++ redistributable
-and no `SDL3.dll`. To build it by hand on Windows, open an "x64 Native Tools Command Prompt for VS" (or run `vcvars64.bat`),
-install NASM and Git, and run `bash build.sh --release --sdl fetch --package` from Git Bash, or use the `windows-release` CMake preset.
+## Windows notes
 
-## Local equivalent of the Linux job
+The installer installs `bin\ge-demo.exe`, `share\game-engine\assets\` and docs, per user by default (`/ALLUSERS` or the
+dialog for Program Files), with a Start Menu shortcut and an uninstaller. The exe links the C++ runtime and SDL3 statically
+(`GE_STATIC_CRT`, `GE_SDL=FETCH`), so no redistributable or DLL is needed. The Windows job has not been run on GitHub yet:
+expect the first run to need small fixes; send the failing step's log.
 
-```
-./build.sh --release --sdl fetch --werror --package   # needs the X11/Wayland/ALSA dev packages listed in README.md
-```
+To build the installer by hand: x64 Native Tools prompt, NASM, Ninja and Inno Setup 6 installed, then
+`bash build.sh --release --sdl fetch --package` from Git Bash.

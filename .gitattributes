@@ -8,6 +8,8 @@
 CMakeLists.txt text eol=lf
 CMakePresets.json text eol=lf
 *.yml text eol=lf
+*.py text eol=lf
+*.iss text eol=lf
 *.ini text eol=lf
 assets/levels/*.txt text eol=lf
 *.png binary

@@ -36,7 +36,8 @@ Usage: ./build.sh [options]
       --no-asm           same as --asm off
       --sdl auto|on|fetch|off  SDL3 window support (default: auto; "fetch" downloads and builds SDL3)
       --no-tests         skip CTest
-      --package          create a package with CPack after a successful build
+      --package          after a successful build, create the installer: game-engine-demo_<version>_amd64.deb
+                         on Linux (CPack), GameEngine-Setup.exe on Windows (needs Inno Setup 6)
   -G, --generator NAME   CMake generator (default: Ninja if found, else Unix Makefiles / Ninja on Windows)
   -j, --jobs N           parallel jobs (default: all cores)
       --cxx PATH         C++ compiler to use
@@ -271,15 +272,55 @@ else
 fi
 
 # ---- package ------------------------------------------------------------------------
+# Linux: CPack builds game-engine-demo_<version>_amd64.deb (generator chosen in cmake/Packaging.cmake).
+# Windows: stage "cmake --install", then Inno Setup compiles packaging/windows/GameEngine.iss.
+find_iscc() {
+  local c
+  for c in iscc ISCC; do have "$c" && { command -v "$c"; return 0; }; done
+  for c in "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" "/c/Program Files/Inno Setup 6/ISCC.exe" \
+           "${LOCALAPPDATA:-}/Programs/Inno Setup 6/ISCC.exe"; do
+    [ -x "$c" ] && { echo "$c"; return 0; }
+  done
+  return 1
+}
+
+package_linux() {
+  have cpack || { fail "cpack not found (ships with CMake)"; return 1; }
+  have dpkg-deb || { fail "dpkg-deb not found (install dpkg-dev)"; return 1; }
+  rm -f "$BUILD_DIR"/game-engine-demo_*.deb   # never let a stale package pass for a new one
+  ( cd "$BUILD_DIR" && run_logged "logs/package.log" cpack -C "$CONFIG" ) || return 1
+  ls "$BUILD_DIR"/game-engine-demo_*_amd64.deb >/dev/null 2>&1 || { fail "cpack produced no .deb"; return 1; }
+}
+
+package_windows() {
+  local iscc version stage abs_build
+  iscc="$(find_iscc)" || { fail "Inno Setup 6 (ISCC.exe) not found. Install it: choco install innosetup"; return 1; }
+  version="$(sed -n 's/^CMAKE_PROJECT_VERSION:[A-Z]*=//p' "$BUILD_DIR/CMakeCache.txt" | head -n1)"
+  [ -n "$version" ] || { fail "cannot read the project version from $BUILD_DIR/CMakeCache.txt"; return 1; }
+  abs_build="$(cd "$BUILD_DIR" && pwd)"
+  stage="$abs_build/installer-stage"
+  rm -rf "$stage"
+  run_logged "$LOG_DIR/package.log" cmake --install "$BUILD_DIR" --config "$CONFIG" --prefix "$stage" || return 1
+  rm -f "$BUILD_DIR/GameEngine-Setup.exe"
+  # MSYS rewrites arguments that start with "/" (ISCC's option style) into paths; switch that off for this call.
+  MSYS2_ARG_CONV_EXCL='*' run_logged "$LOG_DIR/package-iscc.log" "$iscc" /Q "/DAppVersion=$version" \
+    "/DStageDir=$(cygpath -w "$stage")" "/O$(cygpath -w "$abs_build")" "$(cygpath -w "$ROOT/packaging/windows/GameEngine.iss")" || return 1
+  [ -f "$BUILD_DIR/GameEngine-Setup.exe" ] || { fail "Inno Setup produced no GameEngine-Setup.exe"; return 1; }
+}
+
 if [ "$PACKAGE" = 1 ]; then
   step "Package"
-  if ! have cpack; then fail "cpack not found (ships with CMake)"; exit 5; fi
-  if ! ( cd "$BUILD_DIR" && run_logged "logs/package.log" cpack -C "$CONFIG" ); then
+  case "$OS" in
+    linux) package_linux; rc=$? ;;
+    windows) package_windows; rc=$? ;;
+    *) fail "packaging is supported on Linux (.deb) and Windows (Setup.exe) only"; rc=1 ;;
+  esac
+  if [ "$rc" -ne 0 ]; then
     fail "packaging failed (stage: package)"
-    tail -n 15 "$LOG_DIR/package.log" | sed 's/^/    /' >&2
+    for l in "$LOG_DIR/package.log" "$LOG_DIR/package-iscc.log"; do [ -f "$l" ] && tail -n 15 "$l" | sed 's/^/    /' >&2; done
     exit 5
   fi
-  ok "packages written to $BUILD_DIR"
+  ok "package(s) written to $BUILD_DIR: $(cd "$BUILD_DIR" && ls game-engine-demo_*_amd64.deb GameEngine-Setup.exe 2>/dev/null | tr '\n' ' ')"
 fi
 
 printf '%s==> Build succeeded%s (%s)\n' "$G" "$N" "$CONFIG"

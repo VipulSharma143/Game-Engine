@@ -54,7 +54,7 @@ if [ "$DEEP" = 1 ]; then
   remove CMakeUserPresets.json
   remove Testing
   remove _CPack_Packages
-  for f in *.tar.gz *.zip *.sha256 ge-demo ge-demo.exe; do
+  for f in *.tar.gz *.zip *.deb *.sha256 GameEngine-Setup.exe ge-demo ge-demo.exe; do
     # only generated root-level packages/binaries (never tracked files)
     remove "$f"
   done

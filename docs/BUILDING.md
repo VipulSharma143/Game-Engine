@@ -27,4 +27,4 @@ None. Nothing is fetched during configure or build. SDL3 (*planned*) will be add
 
 ## Windows
 
-Intended: Visual Studio Build Tools (MSVC), Ninja and NASM on `PATH`, built from a "x64 Native Tools" prompt with the same commands. This path is configured in `.github/workflows/build-windows.yml` but has not been executed or verified yet.
+Intended: Visual Studio Build Tools (MSVC), Ninja and NASM on `PATH`, built from a "x64 Native Tools" prompt with the same commands. This path is configured in the `windows` job of `.github/workflows/ci.yml` but has not been executed or verified yet.

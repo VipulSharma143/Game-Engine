@@ -186,6 +186,20 @@ TEST(assets_dir_detection_and_env_override) {
 #endif
 }
 
+#if defined(__linux__)
+// Started through PATH (an installed package), argv[0] has no directory; the search must still start from the
+// real location of the executable, not from the current directory.
+TEST(asset_search_resolves_a_bare_executable_name) {
+    std::error_code ec;
+    const fs::path self = fs::read_symlink("/proc/self/exe", ec);
+    CHECK(!ec);
+    const auto candidates = ge::asset_dir_candidates("ge-demo");
+    bool found_next_to_exe = false;
+    for (const fs::path& c : candidates) found_next_to_exe = found_next_to_exe || c == fs::absolute(self.parent_path()) / "assets";
+    CHECK(found_next_to_exe);
+}
+#endif
+
 TEST(resource_manager_caches_and_rejects_unsafe_paths) {
     TempDir dir;
     write_file(dir.path / "levels" / "b.txt", kGoodLevel);

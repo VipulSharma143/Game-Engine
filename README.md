@@ -2,31 +2,46 @@
 
 A small C++20 / NASM x86-64 engine foundation with a CPU raycasting renderer, built as the base for a retro first-person game.
 
-**Status: early foundation (v0.1.0).** The engine core, a software raycaster, a grid world with player movement and collision, and a headless demo all build, run and pass automated tests on Linux. There is **no window yet**: frames are rendered in memory and can be dumped as an ASCII preview or a PPM image. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the exact state of every component.
+**Status: v0.1.0, a playable first-person demo.** See [CHANGELOG.md](CHANGELOG.md) for what the release contains and
+[PROJECT_STATUS.md](PROJECT_STATUS.md) for the verified state of every component.
 
-## What works today
+## Install
 
-- CMake build (C++20, GCC verified on Linux), Debug/Release, Unix Makefiles and Ninja.
-- Engine core: config + CLI parsing, severity logger, monotonic frame timer with spike clamping, fixed-timestep loop with a bounded catch-up, orderly init/shutdown.
-- CPU raycasting renderer (DDA) with a reusable framebuffer and per-column depth buffer; no heap allocation per frame.
-- Grid world, player movement (walk, strafe, turn), axis-separated wall collision with sliding.
-- Headless platform with scripted input, PPM and ASCII frame output.
-- NASM routines (`add`, `multiply`, framebuffer fill, column fill, frame checksum) for System V and Windows x64, behind a C++ interface with portable fallbacks, verified bit-identical by tests. The framebuffer uses them; they are at performance parity with the C++ code, not faster.
-- 65 automated tests across 8 CTest entries, plus a separate benchmark tool.
+Download the packages from the [Releases page](https://github.com/VipulSharma143/Game-Engine/releases). No compiler,
+CMake, NASM or Git is needed to run them.
 
-## Not implemented yet
+| System | File | Install | Run |
+| --- | --- | --- | --- |
+| Windows 10/11 x64 | `GameEngine-Setup.exe` | Double-click it (installs for the current user; the dialog offers all users). The C++ runtime and SDL3 are built in. | Start Menu -> Game Engine Demo. Uninstall from Settings -> Apps. |
+| Linux x86-64 | `game-engine-demo_<version>_amd64.deb` | `sudo apt install ./game-engine-demo_<version>_amd64.deb` | `ge-demo` |
 
-Window, keyboard/mouse input and real-time presentation (SDL3 is planned), textures, sprites, enemies, weapons, audio, JSON levels/prefabs, level editor, entity-component system, multithreading. Windows and Clang builds are configured in CI but have not been verified by the maintainers yet.
+Linux requirements: a distribution with glibc 2.38 or newer and libstdc++ from GCC 13 or newer (Ubuntu 24.04, Linux Mint 22
+and later), and an X11 or Wayland desktop. `apt` also installs the recommended window-system and ALSA libraries. The
+package was verified on Ubuntu 24.04 only. The demo finds its levels in `/usr/share/game-engine/assets`, wherever you run it from.
+
+Check a download: `sha256sum -c SHA256SUMS.txt --ignore-missing` (Linux) or `certutil -hashfile GameEngine-Setup.exe SHA256` (Windows).
+
+## What works
+
+- SDL3 window with keyboard/mouse input, menus and pause; textured raycaster with distance fog; enemies, weapon, pickups, doors, waves; four text-file levels; synthesised sound; headless mode with scripted input (PPM, ASCII, WAV output).
+- NASM x86-64 routines for System V and Windows x64 with bit-identical C++ fallbacks (fog kernels SSE2/AVX2). They are at performance parity or a modest speed-up; see [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+- 17 CTest entries (unit, platform, assembly equivalence, integration), plus a separate benchmark tool.
+
+## Not implemented
+
+JSON levels and prefabs, a level editor, image/audio asset files (textures and sounds are generated in code), multithreading.
+The Windows/MSVC build and the installer are exercised by CI only; Clang has not been verified.
 
 ## Root scripts
 
 | Script | Purpose |
 | --- | --- |
-| `./build.sh` | Detects OS, compiler, CMake, NASM and SDL3, then configures, builds and tests. Options: `--debug/--release`, `--asm auto|on|off`, `--no-tests`, `--package`, `--diagnose`, `--werror`, `--sanitize`, `-v`. Exit codes: 0 ok, 1 usage/missing tool, 2 configure, 3 build, 4 tests, 5 package. On a build failure it prints the failing target, source file and stage. Output goes to `build/<config>/`. |
+| `./build.sh` | Detects OS, compiler, CMake, NASM and SDL3, then configures, builds and tests. Options: `--debug/--release`, `--asm auto|on|off`, `--no-tests`, `--package` (.deb on Linux, Setup.exe on Windows), `--diagnose`, `--werror`, `--sanitize`, `-v`. Exit codes: 0 ok, 1 usage/missing tool, 2 configure, 3 build, 4 tests, 5 package. On a build failure it prints the failing target, source file and stage. Output goes to `build/<config>/`. |
+| `./release.sh X.Y.Z` | Validates, updates version and changelogs, confirms, commits, tags and pushes a release (see Releases and CI). |
 | `./start-all.sh` | Builds (or with `--no-build` verifies existing binaries), checks prerequisites, refuses a second instance (`--allow-multiple` overrides), launches `ge-demo` and shuts it down cleanly on Ctrl+C. Demo arguments follow `--`. |
 | `./clean.sh` | Removes only known generated paths (`build/`, `out/`, `*.ppm`). `--deep` also removes stray CMake files and root-level packages; `--dry-run` previews. Safe to repeat. |
 
-The scripts run on Linux and in Git Bash/MSYS2 on Windows. The Windows path through the scripts has **not been run**; only Linux was verified.
+The scripts run on Linux and in Git Bash/MSYS2 on Windows. `build.sh` and the installer step were run on Linux here; the Windows path is exercised by CI.
 
 ## Playing the demo
 
@@ -88,39 +103,49 @@ control it. If no audio device can be opened the game continues silently and say
 Headless runs can render the audio to a file instead of a speaker: `./start-all.sh --no-build -- --headless --wav demo.wav`
 writes the demo's sound track (16-bit stereo, 44.1 kHz), so you can hear what the scripted run triggers.
 
-## CI/CD (GitHub Actions)
+## Releases and CI
 
-`.github/workflows/ci.yml` builds, tests and packages on Linux and Windows for every push and pull request, and publishes a
-GitHub Release with both packages and checksums when you push a tag such as `v0.1.0`. See `docs/CI_CD.md`.
+One workflow, `.github/workflows/ci.yml`, builds and tests Linux and Windows in parallel on every push and pull request to
+`main`. Pushing a tag `vX.Y.Z` publishes a GitHub Release containing only `GameEngine-Setup.exe`,
+`game-engine-demo_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, and only if both builds passed.
 
-## Making a release package
+To make a release, commit your work to `main`, add a `## [X.Y.Z] - Unreleased` section to `CHANGELOG.md`, then run:
 
-`./build.sh --release --sdl fetch --package` writes `build/release/game-engine-demo-<version>-linux-x86_64.tar.gz` and a
-`.sha256` file next to it. Unpack it anywhere and run `bin/ge-demo` (it finds its levels in `share/game-engine/assets`).
-With `--sdl fetch` SDL3 is linked in statically, so the package needs no extra libraries; with a system or prefix SDL3 the
-shared library is copied into `lib/` and found through the binary's RPATH. The package depends on the C library of the
-machine it was built on, so build on the oldest distribution you want to support. Verify a download with
-`sha256sum -c game-engine-demo-*.tar.gz.sha256`. A Windows ZIP has to be built on Windows (or a Windows CI runner).
+```bash
+./release.sh X.Y.Z --dry-run   # optional: run every check, change nothing
+./release.sh X.Y.Z             # validates, updates version + changelogs, asks you to confirm, commits, tags, pushes
+```
 
-## Prerequisites
+The version lives in one place, `project(GameEngine VERSION ...)` in `CMakeLists.txt`; `release.sh` updates it. Details,
+changelog rules and recovery from a failed release: [docs/CI_CD.md](docs/CI_CD.md).
 
-- A C++20 compiler (verified: GCC 13.3 on Ubuntu 24.04)
-- CMake 3.21 or newer (verified: 3.28.3)
+## Building the packages locally
+
+`./build.sh --release --sdl fetch --package` builds, tests and then writes `build/release/game-engine-demo_<version>_amd64.deb`
+on Linux (needs `dpkg-dev`) or `build/release/GameEngine-Setup.exe` on Windows (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php),
+`choco install innosetup`). With `--sdl fetch` SDL3 is linked in statically. The package depends on the C library of the
+machine it was built on, so build on the oldest distribution you want to support.
+
+## Prerequisites (building from source)
+
+- A C++20 compiler (verified: GCC 13.3 on Ubuntu 24.04; MSVC x64 on Windows is built by CI)
+- CMake 3.21 or newer (verified: 3.28.3 and 4.4.4)
 - Optional: NASM 2.16+ for the assembly routines (verified: 2.16.01), Ninja
-
-No third-party libraries are required and nothing is downloaded during configure or build.
+- Optional: SDL3 for the window. `--sdl fetch` downloads and builds it during configure (needs network and, on Linux, the
+  X11/Wayland/ALSA headers listed above); without SDL3 only the headless demo is built.
 
 ## Build
 
 ```bash
-# Linux (Unix Makefiles; Ninja works too: -G Ninja)
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+./build.sh --release --sdl fetch      # configure, build and test in build/release/
+# or by hand:
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGE_SDL=FETCH
 cmake --build build --parallel
 ```
 
-Presets are provided: `cmake --preset release && cmake --build --preset release` (also `debug`, `ninja-debug`, `ninja-release`, `no-asm`, `asan`). Preset builds go to `build/<preset>/`.
+Presets are provided: `cmake --preset release && cmake --build --preset release` (also `debug`, `ninja-debug`, `ninja-release`, `windows-release`, `no-asm`, `asan`). Preset builds go to `build/<preset>/`.
 
-Windows (MSVC, Ninja, NASM on PATH) is configured in `.github/workflows/build-windows.yml` using the same CMake options; it has not been run by the maintainers yet. See [docs/BUILDING.md](docs/BUILDING.md).
+See [docs/BUILDING.md](docs/BUILDING.md).
 
 ### Options
 
@@ -159,19 +184,17 @@ game/                       game library (player, application, demo tour) and th
 asm/x86_64/                 NASM sources (common + linux: System V, windows: Windows x64)
 tests/                      unit, platform, assembly, integration (+ tiny test harness in tests/support)
 tools/benchmark-runner/     ge-bench
-cmake/  docs/  assets/      build modules, documentation, asset directories (empty, reserved)
+cmake/  docs/  assets/      build modules, documentation, levels and settings
+packaging/windows/          Inno Setup script for GameEngine-Setup.exe
+tools/                      benchmark runner, changelog.py (changelog sync + validation) and its tests
+release.sh                  one-command release
 ```
 
 ## Limitations
 
-Headless only; single-threaded; map is a small built-in grid; walls are flat colours; no sprites or textures; the NASM routines are correct and cost nothing, but are not faster than the C++ fallbacks (see [docs/PERFORMANCE.md](docs/PERFORMANCE.md)).
-
-## Milestones
-
-1. **Done:** build system, core, raycaster, world/player, headless demo, tests, CI config.
-2. SDL3 window, keyboard/mouse input, real-time presentation.
-3. Textured walls, sprites, simple enemies/weapons.
-4. JSON levels, prefabs, audio, then editor tooling.
+Single-threaded; levels are small text grids; no sprite or texture files (everything is generated in code); on Windows the
+demo opens a console window next to the game window (it logs there). The NASM routines are correct but only modestly
+faster than the C++ fallbacks (see [docs/PERFORMANCE.md](docs/PERFORMANCE.md)).
 
 ## Contributing and license
 

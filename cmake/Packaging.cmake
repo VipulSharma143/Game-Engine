@@ -1,22 +1,36 @@
-# Minimal install rules. Installers and release archives are planned, not implemented.
+# Install rules and packaging.
+#
+#   Linux:   ./build.sh --package  ->  CPack writes game-engine-demo_<version>_amd64.deb
+#   Windows: ./build.sh --package  ->  stages "cmake --install", then Inno Setup builds GameEngine-Setup.exe
+#            (packaging/windows/GameEngine.iss; CPack is not used on Windows)
+#
+# Layout (identical on both systems, and what find_assets_dir() in AssetPath.cpp already searches):
+#   bin/ge-demo[.exe]   share/game-engine/assets/   share/doc/game-engine-demo/{README.md,LICENSE}
+set(CMAKE_INSTALL_DOCDIR share/doc/game-engine-demo)
 include(GNUInstallDirs)
 install(TARGETS ge_demo RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(DIRECTORY assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/game-engine/assets PATTERN ".gitkeep" EXCLUDE)
 install(FILES README.md LICENSE DESTINATION ${CMAKE_INSTALL_DOCDIR})
 
-# Demo archive via CPack (./build.sh --package): TGZ on Linux, ZIP on Windows.
-install(DIRECTORY assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/game-engine/assets)
-set(CPACK_PACKAGE_NAME "game-engine-demo")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
-set(CPACK_PACKAGE_FILE_NAME "game-engine-demo-${PROJECT_VERSION}-${GE_PLATFORM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
-if(WIN32)
-  set(CPACK_GENERATOR ZIP)
-else()
-  set(CPACK_GENERATOR TGZ)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(CPACK_GENERATOR DEB)
+  set(CPACK_PACKAGE_NAME "game-engine-demo")
+  set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
+  set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/VipulSharma143/Game-Engine")
+  set(CPACK_PACKAGE_CONTACT "VipulSharma143 <VipulSharma143@users.noreply.github.com>")
+  set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
+  set(CPACK_STRIP_FILES ON)
+  set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)               # game-engine-demo_<version>_amd64.deb
+  set(CPACK_DEBIAN_PACKAGE_SECTION "games")
+  set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)                # libc6, libstdc++6, ... from the binary itself
+  # SDL3 is linked statically (GE_SDL=FETCH) but loads the window-system and audio libraries at run time,
+  # so they cannot be found by shlibdeps. A desktop with X11 or Wayland already has them.
+  set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "libx11-6 | libwayland-client0, libasound2t64 | libasound2, libgl1")
+  include(CPack)
 endif()
-set(CPACK_PACKAGE_CHECKSUM SHA256)
-include(CPack)
 
-# A shared SDL3 (system package or -DCMAKE_PREFIX_PATH) must travel with the package, or the unpacked
+# A shared SDL3 (system package or -DCMAKE_PREFIX_PATH) must travel with the package, or the installed
 # demo would not start on a machine without it. A static SDL3 (GE_SDL=FETCH) needs nothing.
 if(GE_SDL_ENABLED)
   set(_ge_sdl_target SDL3::SDL3)

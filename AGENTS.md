@@ -15,7 +15,7 @@ asm/x86_64/      NASM sources                                          (only via
 - `core`: config, logger, timer, fixed-step loop, `Engine`, `Application` interface.
 - `renderer`: `Framebuffer`, `Camera`, `cast_ray` (DDA), `Renderer` (walls + depth buffer).
 - `world` / `physics`: `GridMap`, `Level`, AABB collision, sliding movement.
-- `platform`: `IPlatform` interface; `HeadlessPlatform` is the only implementation. No OS headers outside this directory.
+- `platform`: `IPlatform` interface; `HeadlessPlatform` and the SDL3 platform implement it. No OS headers outside this directory.
 - `optimized`: `scalar::` reference implementations and `opt::` dispatch (NASM when `GE_HAVE_ASM`).
 
 Headers live in `include/engine/<module>/`, sources in `engine/<module>/`, game code in `game/include/game/` and `game/src/`. Namespaces: `ge` (engine), `game`.
@@ -75,9 +75,25 @@ Every behaviour change needs a test in `tests/` (harness: `tests/support/TestFra
 
 ## Implemented vs planned
 
-Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum) with fallbacks, tests, benchmark tool. Implemented but unverified: Windows build, Clang build, GitHub Actions runs. **Planned (do not describe as working):** SDL3 window/input, textures, sprites, enemies, weapons, audio, JSON levels/prefabs, resource manager, editor, ECS, scripting, multithreading.
+Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum) with fallbacks, tests, benchmark tool. Also implemented: SDL3 window and input, textured rendering, enemies, weapons, pickups, doors, audio, text levels, `.deb` and Setup.exe packaging. Not verified locally: the MSVC build, the Windows installer (CI only), Clang. **Planned (do not describe as working):** JSON levels/prefabs, editor, scripting, multithreading.
 
 Do not claim a feature exists because a file or directory exists: empty directories under `assets/`, `tools/` and `engine/{audio,resources}` are reserved placeholders.
+
+## CI, versioning, changelog and releases
+
+- One workflow, `.github/workflows/ci.yml` (Linux and Windows in parallel, then a tag-only release job). Do not add
+  workflows or jobs without a measured need. Every build step must be a `./build.sh` call so CI equals a local run.
+  Permissions stay `contents: read`; only the release job has `contents: write`. CI never creates or pushes tags.
+- The one authoritative version is `project(GameEngine VERSION x.y.z ...)` in `CMakeLists.txt`. Never write a version
+  anywhere else by hand (installer, package names and release titles derive from it). Tags are `vMAJOR.MINOR.PATCH`.
+- `CHANGELOG.md` holds the two newest releases (plus at most one `## [X.Y.Z] - Unreleased` entry at the top);
+  `ARCHIVE_CHANGELOG.md` holds everything older. Categories: Features, Improvements, Bug Fixes, Breaking Changes. Write
+  short, factual notes for user-visible changes only, never commit lists, and never claim unimplemented features.
+  Never edit archived entries; `python3 tools/changelog.py sync|check` moves and validates them (run `python3 tools/test_changelog.py` after changing the script).
+- Release: commit to `main`, add the Unreleased entry, run `./release.sh X.Y.Z` (`--dry-run` first). Never run `git tag`
+  or `git push <tag>` by hand, never delete or move a pushed tag, never overwrite a release. Recovery: docs/CI_CD.md.
+- Packaging is `./build.sh --package` (CPack `.deb` on Linux, Inno Setup `packaging/windows/GameEngine.iss` on Windows).
+  Install layout on both: `bin/`, `share/game-engine/assets/`; the demo finds assets relative to the real executable.
 
 ## Documentation
 

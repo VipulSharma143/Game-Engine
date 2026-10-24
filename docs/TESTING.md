@@ -19,4 +19,4 @@ The headless path: `HeadlessPlatform` + `deterministic = true` runs the whole en
 
 Also verified manually (not in CTest): sanitizer build (`-DGE_SANITIZE="address;undefined"`), `GE_ASM=OFF`, `GE_ASM=ON` without NASM failing with a clear message.
 
-CI: `.github/workflows/build-linux.yml` and `build-windows.yml` configure, build, run CTest and run the demo. Not yet executed on GitHub.
+CI: `.github/workflows/ci.yml` builds, runs CTest and installs the packaged demo on Linux and Windows. Not yet executed on GitHub (see docs/CI_CD.md).
