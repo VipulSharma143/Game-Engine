@@ -4,7 +4,7 @@ All notable changes to Game Engine are recorded here, newest first. Only the two
 file; older releases are in [ARCHIVE_CHANGELOG.md](ARCHIVE_CHANGELOG.md). `tools/changelog.py` keeps both files in
 sync, and `./release.sh` fills in the release date. See [AGENTS.md](AGENTS.md) for the rules.
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-24
 
 ### Features
 
