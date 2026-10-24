@@ -1,4 +1,4 @@
-# Build, test and package on Linux and Windows. Every build step calls ./build.sh, so CI and a
+# Build, test and package on Linux and Windows. Every build step calls bash ./build.sh, so CI and a
 # developer's machine run exactly the same commands.
 #
 #   push / pull request : build + test (+ package) on both systems, upload the packages as artifacts
@@ -37,10 +37,10 @@ jobs:
             libxkbcommon-dev libwayland-dev libasound2-dev libgl1-mesa-dev
 
       - name: Environment report
-        run: ./build.sh --diagnose --sdl fetch
+        run: bash ./build.sh --diagnose --sdl fetch
 
       - name: Build, test and package (Release)
-        run: ./build.sh --release --sdl fetch --werror --package
+        run: bash ./build.sh --release --sdl fetch --werror --package
 
       - name: Smoke-test the unpacked package from a clean environment
         run: |
@@ -78,7 +78,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build nasm cmake
       - name: Build and test
-        run: ./build.sh ${{ matrix.args }}
+        run: bash ./build.sh ${{ matrix.args }}
 
   windows:
     name: Windows build, test, package
@@ -101,12 +101,12 @@ jobs:
         run: command -v ninja || python -m pip install ninja
 
       - name: Environment report
-        run: ./build.sh --diagnose --sdl fetch
+        run: bash ./build.sh --diagnose --sdl fetch
 
       # Warnings are not errors on Windows yet: MSVC /W4 has never been run on this code. Turn on --werror
       # here once the first run is clean.
       - name: Build, test and package (Release)
-        run: ./build.sh --release --sdl fetch --package
+        run: bash ./build.sh --release --sdl fetch --package
 
       - name: Smoke-test the unpacked package
         shell: pwsh
