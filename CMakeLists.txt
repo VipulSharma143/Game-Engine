@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(SORTED VERSION 0.2.0 DESCRIPTION "SORTED: a small C++20/NASM raycasting game engine" LANGUAGES CXX)
+project(SORTED VERSION 0.3.0 DESCRIPTION "SORTED: a small C++20/NASM raycasting game engine" LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
