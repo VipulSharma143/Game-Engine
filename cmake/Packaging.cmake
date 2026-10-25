@@ -4,7 +4,10 @@
 #     Linux:   ./build.sh --package  ->  CPack writes funkshot_<version>_amd64.deb
 #     Windows: ./build.sh --package  ->  stages "cmake --install", then Inno Setup builds FunkShot-Setup.exe
 #              (packaging/windows/FunkShot.iss; CPack is not used on Windows)
-#   SORTED (the engine, component "sdk")  ->  see cmake/Sdk.cmake
+#   SORTED SDK (the engine, component "sdk", cmake/Sdk.cmake)
+#     Linux:   the same cpack run also writes sorted-sdk_<version>_amd64.deb (installs under /usr)
+#     Windows: stage "cmake --install --component sdk", then Inno Setup builds SORTED-SDK-Setup.exe
+#              (packaging/windows/SORTED-SDK.iss)
 #
 # Game layout (identical on both systems, and what find_assets_dir() in AssetPath.cpp already searches):
 #   bin/funkshot[.exe]   share/funkshot/assets/   share/doc/funkshot/{README.md,LICENSE}
@@ -23,8 +26,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CPACK_PACKAGE_CONTACT "VipulSharma143 <VipulSharma143@users.noreply.github.com>")
   set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
   set(CPACK_STRIP_FILES ON)
-  set(CPACK_DEB_COMPONENT_INSTALL ON)                   # package only the "funkshot" component, never the SDK
+  set(CPACK_DEB_COMPONENT_INSTALL ON)                   # one .deb per component
   set(CPACK_COMPONENTS_ALL funkshot)
+  if(GE_SDL STREQUAL "FETCH" AND GE_SDL_ENABLED)    # the SDK exists only when SDL3 can be bundled (cmake/Sdk.cmake)
+    list(APPEND CPACK_COMPONENTS_ALL sdk)
+  endif()
   set(CPACK_DEBIAN_FUNKSHOT_PACKAGE_NAME "funkshot")
   set(CPACK_DEBIAN_FUNKSHOT_FILE_NAME DEB-DEFAULT)      # funkshot_<version>_amd64.deb
   set(CPACK_DEBIAN_FUNKSHOT_PACKAGE_SECTION "games")
@@ -32,6 +38,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # SDL3 is linked statically (GE_SDL=FETCH) but loads the window-system and audio libraries at run time,
   # so they cannot be found by shlibdeps. A desktop with X11 or Wayland already has them.
   set(CPACK_DEBIAN_FUNKSHOT_PACKAGE_RECOMMENDS "libx11-6 | libwayland-client0, libasound2t64 | libasound2, libgl1")
+  set(CPACK_DEBIAN_SDK_PACKAGE_NAME "sorted-sdk")
+  set(CPACK_DEBIAN_SDK_FILE_NAME DEB-DEFAULT)           # sorted-sdk_<version>_amd64.deb
+  set(CPACK_DEBIAN_SDK_PACKAGE_SECTION "devel")
+  set(CPACK_DEBIAN_SDK_PACKAGE_SHLIBDEPS OFF)           # static libraries and headers only, no binaries
+  set(CPACK_DEBIAN_SDK_PACKAGE_DESCRIPTION "SORTED engine SDK: headers, static library and CMake package (find_package(SORTED)) for building games on the SORTED engine")
+  set(CPACK_DEBIAN_SDK_PACKAGE_RECOMMENDS "cmake, g++, ninja-build")
   include(CPack)
 endif()
 

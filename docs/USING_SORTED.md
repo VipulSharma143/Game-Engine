@@ -4,18 +4,19 @@
 an SDL3 window/input/audio platform and a headless platform for tests. **FunkShot** is the game that is built on it and
 lives in `game/`. You can use SORTED to make your own game without touching FunkShot.
 
-## Get SORTED
+## Install SORTED
 
-Download from the [Releases page](https://github.com/VipulSharma143/Game-Engine/releases):
+Download the SDK installer for your system from the [Releases page](https://github.com/VipulSharma143/Game-Engine/releases):
 
-| System | File |
-| --- | --- |
-| Windows x64 (MSVC) | `SORTED-SDK-<version>-windows-x64.zip` |
-| Linux x86-64 (GCC/Clang, glibc 2.38+) | `SORTED-SDK-<version>-linux-x86_64.tar.gz` |
+| System | File | Install |
+| --- | --- | --- |
+| Windows x64 (MSVC) | `SORTED-SDK-Setup.exe` | Run it. It installs for the current user (no admin prompt) and sets the user variable `SORTED_ROOT`, which CMake reads; or pick "all users" to install into `C:\Program Files\SORTED`, where CMake finds it by itself. Uninstall from Settings -> Apps. |
+| Linux x86-64 (GCC/Clang, glibc 2.38+) | `sorted-sdk_<version>_amd64.deb` | `sudo apt install ./sorted-sdk_<version>_amd64.deb` (installs under `/usr`; remove with `sudo apt remove sorted-sdk`) |
 
-Unpack it anywhere. It contains `include/sorted/` (headers), `lib/` (the compiled engine, `libsorted.a` or `sorted.lib`,
-and the static SDL3 it was built with), `lib/cmake/SORTED/` (the CMake package) and `share/sorted/examples/hello-sorted/`.
-You need CMake 3.21+, Ninja (or another generator) and a C++20 compiler. You do not need NASM, Git or SDL3.
+You get `include/sorted/` (headers), the compiled engine (`libsorted.a` or `sorted.lib`) with the static SDL3 it was built
+with, a CMake package, this guide and a ready-to-build example (`share/sorted/examples/hello-sorted/`). You need CMake
+3.21+, Ninja (or another generator) and a C++20 compiler. You do not need NASM, Git or SDL3. On Windows, open a new
+terminal after installing so that `SORTED_ROOT` is visible.
 
 ## Your first program
 
@@ -23,18 +24,20 @@ You need CMake 3.21+, Ninja (or another generator) and a C++20 compiler. You do 
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.21)
 project(mygame LANGUAGES CXX)
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")      # Windows only matters: the SDK uses the static MSVC runtime
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")      # matters on Windows only: the SDK uses the static MSVC runtime
 find_package(SORTED CONFIG REQUIRED)
 add_executable(mygame main.cpp)
 target_link_libraries(mygame PRIVATE sorted::engine)
 ```
 
 ```bash
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/SORTED-SDK-<version>-linux-x86_64
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-`main.cpp` is the example shipped in the SDK (`share/sorted/examples/hello-sorted/main.cpp`): a class that implements
+If CMake cannot find SORTED (for example it is installed somewhere unusual), add `-DCMAKE_PREFIX_PATH=<SDK folder>`.
+
+`main.cpp` is the example installed with the SDK (`hello-sorted/main.cpp`): a class that implements
 `ge::Application`, handed to a `ge::Engine`. Run it with `--window` for a window.
 
 ```cpp

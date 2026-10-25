@@ -5,7 +5,7 @@ This repository contains two products that ship together:
 | Name | What it is | You get |
 | --- | --- | --- |
 | **FunkShot** | The game: a retro first-person shooter | `FunkShot-Setup.exe` (Windows), `funkshot_<version>_amd64.deb` (Linux) |
-| **SORTED** | The engine FunkShot is built on: a small C++20/NASM raycasting engine | `SORTED-SDK-<version>-windows-x64.zip`, `SORTED-SDK-<version>-linux-x86_64.tar.gz` |
+| **SORTED** | The engine FunkShot is built on: a small C++20/NASM raycasting engine | `SORTED-SDK-Setup.exe` (Windows), `sorted-sdk_<version>_amd64.deb` (Linux) |
 
 Play FunkShot if you want the game. Use SORTED if you want to make your own game: see [docs/USING_SORTED.md](docs/USING_SORTED.md).
 (Code layout: `engine/`, `include/engine/` and `asm/` are SORTED; `game/` and `assets/` are FunkShot. The repository is still
@@ -32,15 +32,22 @@ Check a download: `sha256sum -c SHA256SUMS.txt --ignore-missing` (Linux) or `cer
 
 ## Use SORTED to make your own game
 
-Download the SDK for your system (see the table above), unpack it, and in your CMake project:
+Install the SDK like any other program (from the Releases page):
+
+| System | Install |
+| --- | --- |
+| Windows 10/11 x64 (MSVC) | Run `SORTED-SDK-Setup.exe`. Per user by default; it sets `SORTED_ROOT` so CMake finds it. Choose "all users" to install into Program Files instead. |
+| Linux x86-64 | `sudo apt install ./sorted-sdk_<version>_amd64.deb` (installs under `/usr`) |
+
+Then, in your CMake project, with no extra paths:
 
 ```cmake
-find_package(SORTED CONFIG REQUIRED)     # cmake -DCMAKE_PREFIX_PATH=<unpacked SDK>
+find_package(SORTED CONFIG REQUIRED)
 target_link_libraries(mygame PRIVATE sorted::engine)
 ```
 
-Headers, the compiled engine and SDL3 are all inside the SDK. A complete first program is in `examples/hello-sorted/`.
-Full guide: [docs/USING_SORTED.md](docs/USING_SORTED.md).
+Headers, the compiled engine and SDL3 are all part of the SDK. A complete first program is in `examples/hello-sorted/`
+(also installed with the SDK). Full guide: [docs/USING_SORTED.md](docs/USING_SORTED.md).
 
 ## What works
 
@@ -128,7 +135,7 @@ writes the demo's sound track (16-bit stereo, 44.1 kHz), so you can hear what th
 
 One workflow, `.github/workflows/ci.yml`, builds and tests Linux and Windows in parallel on every push and pull request to
 `main`. Pushing a tag `vX.Y.Z` publishes a GitHub Release containing only `FunkShot-Setup.exe`,
-`funkshot_X.Y.Z_amd64.deb`, `SORTED-SDK-X.Y.Z-windows-x64.zip`, `SORTED-SDK-X.Y.Z-linux-x86_64.tar.gz` and `SHA256SUMS.txt`, and only if both builds passed.
+`funkshot_X.Y.Z_amd64.deb`, `SORTED-SDK-Setup.exe`, `sorted-sdk_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, and only if both builds passed.
 
 To make a release, commit your work to `main`, add a `## [X.Y.Z] - Unreleased` section to `CHANGELOG.md`, then run:
 
@@ -146,8 +153,8 @@ changelog rules and recovery from a failed release: [docs/CI_CD.md](docs/CI_CD.m
 
 - FunkShot: `funkshot_<version>_amd64.deb` on Linux (needs `dpkg-dev`) or `FunkShot-Setup.exe` on Windows (needs
   [Inno Setup 6](https://jrsoftware.org/isinfo.php), `choco install innosetup`).
-- SORTED SDK: `SORTED-SDK-<version>-linux-x86_64.tar.gz` or `SORTED-SDK-<version>-windows-x64.zip`.
-  `bash tools/sdk-smoke-test.sh <that archive>` unpacks it elsewhere and builds the example against it.
+- SORTED SDK: `sorted-sdk_<version>_amd64.deb` on Linux or `SORTED-SDK-Setup.exe` on Windows.
+  After installing it, `bash tools/sdk-smoke-test.sh` builds the example that ships inside the SDK against it.
 
 With `--sdl fetch` SDL3 is linked in statically. The packages depend on the C library of the machine they were built on, so
 build on the oldest distribution you want to support.

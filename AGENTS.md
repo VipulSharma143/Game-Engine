@@ -92,8 +92,8 @@ Do not claim a feature exists because a file or directory exists: empty director
   Never edit archived entries; `python3 tools/changelog.py sync|check` moves and validates them (run `python3 tools/test_changelog.py` after changing the script).
 - Release: commit to `main`, add the Unreleased entry, run `./release.sh X.Y.Z` (`--dry-run` first). Never run `git tag`
   or `git push <tag>` by hand, never delete or move a pushed tag, never overwrite a release. Recovery: docs/CI_CD.md.
-- Packaging is `./build.sh --package` (CPack `.deb` on Linux, Inno Setup `packaging/windows/FunkShot.iss` on Windows) and also writes the SORTED SDK archive
-  (`cmake/Sdk.cmake`). Game install layout on both systems: `bin/`, `share/funkshot/assets/`; the game finds assets relative to the real executable.
+- Packaging is `./build.sh --package` (CPack `.deb` on Linux, Inno Setup `packaging/windows/FunkShot.iss` on Windows) and also writes the SORTED SDK installer
+  (`sorted-sdk_<version>_amd64.deb` / `SORTED-SDK-Setup.exe` from `packaging/windows/SORTED-SDK.iss`; `cmake/Sdk.cmake`). Game install layout on both systems: `bin/`, `share/funkshot/assets/`; the game finds assets relative to the real executable.
 - Names: **SORTED** is the engine (`engine/`, `include/engine/`, `asm/`; library `libsorted.a`/`sorted.lib`; target `sorted::engine`),
   **FunkShot** is the game (`game/`, `assets/`; executable `funkshot`). Engine code must not depend on `game/`. C++ namespaces
   (`ge`, `game`) and `GE_*` macros keep their short names; do not rename them. Changing a public engine header changes the SDK.

@@ -21,6 +21,6 @@ _CPack_Packages/
 *.tar.gz
 *.deb
 FunkShot-Setup.exe
-SORTED-SDK-*
+SORTED-SDK-Setup.exe
 *.sha256
 out/

@@ -54,7 +54,7 @@ if [ "$DEEP" = 1 ]; then
   remove CMakeUserPresets.json
   remove Testing
   remove _CPack_Packages
-  for f in *.tar.gz *.zip *.deb *.sha256 FunkShot-Setup.exe SORTED-SDK-*.zip SORTED-SDK-*.tar.gz funkshot funkshot.exe; do
+  for f in *.tar.gz *.zip *.deb *.sha256 FunkShot-Setup.exe SORTED-SDK-Setup.exe funkshot funkshot.exe; do
     # only generated root-level packages/binaries (never tracked files)
     remove "$f"
   done

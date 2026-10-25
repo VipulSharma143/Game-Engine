@@ -1,5 +1,5 @@
 # The smallest program built on the SORTED SDK.
-#   cmake -S . -B build -DCMAKE_PREFIX_PATH=<path to the unpacked SORTED SDK>
+#   cmake -S . -B build        (after installing the SORTED SDK; add -DCMAKE_PREFIX_PATH=<SDK folder> if it is not found)
 #   cmake --build build
 cmake_minimum_required(VERSION 3.21)
 project(hello_sorted LANGUAGES CXX)
