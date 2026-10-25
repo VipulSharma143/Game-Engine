@@ -6,7 +6,7 @@
   changelog.py release X.Y.Z     give the "Unreleased" entry for X.Y.Z today's date, then sync
   changelog.py notes X.Y.Z       print the release notes of X.Y.Z (used for the GitHub Release body)
 
-The authoritative version is `project(GameEngine VERSION x.y.z ...)` in CMakeLists.txt. Entries are moved
+The authoritative version is `project(SORTED VERSION x.y.z ...)` in CMakeLists.txt. Entries are moved
 verbatim, nothing is ever dropped, and running a command twice changes nothing the second time.
 """
 import argparse
@@ -20,7 +20,7 @@ from pathlib import Path
 KEEP = 2  # released versions kept in CHANGELOG.md
 CATEGORIES = ("Features", "Improvements", "Bug Fixes", "Breaking Changes")
 HEADING = re.compile(r"^## \[(\d+\.\d+\.\d+)\] - (\d{4}-\d{2}-\d{2}|Unreleased)$")
-CMAKE_VERSION = re.compile(r"^\s*project\(\s*GameEngine\s+VERSION\s+(\d+\.\d+\.\d+)[\s)]", re.M)
+CMAKE_VERSION = re.compile(r"^\s*project\(\s*SORTED\s+VERSION\s+(\d+\.\d+\.\d+)[\s)]", re.M)
 TAG = re.compile(r"^v(\d+\.\d+\.\d+)$")
 ARCHIVE_PREAMBLE = [
     "# Archived Changelog",
@@ -173,7 +173,7 @@ def cmake_version(root):
         raise ChangelogError(f"cannot read CMakeLists.txt: {e}") from None
     match = CMAKE_VERSION.search(text)
     if not match:
-        raise ChangelogError("CMakeLists.txt has no 'project(GameEngine VERSION X.Y.Z ...)' line")
+        raise ChangelogError("CMakeLists.txt has no 'project(SORTED VERSION X.Y.Z ...)' line")
     return match.group(1)
 
 

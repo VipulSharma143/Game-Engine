@@ -20,7 +20,7 @@ for a in "$@"; do
 done
 
 # Refuse to run from anywhere that is not this project.
-if [ ! -f CMakeLists.txt ] || [ ! -d engine ] || ! grep -q 'project(GameEngine' CMakeLists.txt; then
+if [ ! -f CMakeLists.txt ] || [ ! -d engine ] || ! grep -q 'project(SORTED' CMakeLists.txt; then
   echo "error: not a Game Engine checkout; refusing to delete anything." >&2
   exit 1
 fi
@@ -54,7 +54,7 @@ if [ "$DEEP" = 1 ]; then
   remove CMakeUserPresets.json
   remove Testing
   remove _CPack_Packages
-  for f in *.tar.gz *.zip *.deb *.sha256 GameEngine-Setup.exe ge-demo ge-demo.exe; do
+  for f in *.tar.gz *.zip *.deb *.sha256 FunkShot-Setup.exe SORTED-SDK-*.zip SORTED-SDK-*.tar.gz funkshot funkshot.exe; do
     # only generated root-level packages/binaries (never tracked files)
     remove "$f"
   done

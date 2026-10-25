@@ -36,8 +36,10 @@ Usage: ./build.sh [options]
       --no-asm           same as --asm off
       --sdl auto|on|fetch|off  SDL3 window support (default: auto; "fetch" downloads and builds SDL3)
       --no-tests         skip CTest
-      --package          after a successful build, create the installer: game-engine-demo_<version>_amd64.deb
-                         on Linux (CPack), GameEngine-Setup.exe on Windows (needs Inno Setup 6)
+      --package          after a successful build, write both products to the build directory:
+                           FunkShot (game):  funkshot_<version>_amd64.deb (Linux) / FunkShot-Setup.exe (Windows, needs Inno Setup 6)
+                           SORTED (engine):  SORTED-SDK-<version>-linux-x86_64.tar.gz / SORTED-SDK-<version>-windows-x64.zip
+                         (needs --sdl fetch: the SDK bundles that static SDL3)
   -G, --generator NAME   CMake generator (default: Ninja if found, else Unix Makefiles / Ninja on Windows)
   -j, --jobs N           parallel jobs (default: all cores)
       --cxx PATH         C++ compiler to use
@@ -231,7 +233,7 @@ if ! run_logged "$LOG_DIR/configure.log" cmake "${CFG_ARGS[@]}"; then
   echo "  full log: $LOG_DIR/configure.log" >&2
   exit 2
 fi
-ASM_LINE="$(grep -E 'GameEngine .*assembly=' "$LOG_DIR/configure.log" | head -n1)"
+ASM_LINE="$(grep -E 'SORTED .*assembly=' "$LOG_DIR/configure.log" | head -n1)"
 [ -n "$ASM_LINE" ] && ok "${ASM_LINE#-- }"
 
 # ---- build --------------------------------------------------------------------------
@@ -245,17 +247,17 @@ fi
 ok "built in $((SECONDS - START))s"
 
 # Verify the expected artifacts exist; never report success without them.
-DEMO="$BUILD_DIR/ge-demo$EXE"
-for artifact in "$DEMO" "$BUILD_DIR/libge_engine.a"; do
+DEMO="$BUILD_DIR/funkshot$EXE"
+for artifact in "$DEMO" "$BUILD_DIR/libsorted.a"; do
   [ "$OS" = "windows" ] && [ "${artifact##*.}" = "a" ] && continue
   if [ ! -e "$artifact" ]; then
-    # MSVC names static libs ge_engine.lib
+    # MSVC names static libs sorted.lib
     [ -e "${artifact%.a}.lib" ] && continue
     fail "expected build output is missing: $artifact"
     exit 3
   fi
 done
-ok "demo: $DEMO"
+ok "game: $DEMO"
 
 # ---- test ---------------------------------------------------------------------------
 if [ "$RUN_TESTS" = 1 ]; then
@@ -272,8 +274,10 @@ else
 fi
 
 # ---- package ------------------------------------------------------------------------
-# Linux: CPack builds game-engine-demo_<version>_amd64.deb (generator chosen in cmake/Packaging.cmake).
-# Windows: stage "cmake --install", then Inno Setup compiles packaging/windows/GameEngine.iss.
+# Two products come out of one build:
+#   FunkShot (the game): Linux  - CPack builds funkshot_<version>_amd64.deb (component "funkshot", cmake/Packaging.cmake)
+#                        Windows - stage "cmake --install", then Inno Setup compiles packaging/windows/FunkShot.iss
+#   SORTED (the engine SDK, component "sdk", cmake/Sdk.cmake): archived as SORTED-SDK-<version>-<system>.{tar.gz,zip}
 find_iscc() {
   local c
   for c in iscc ISCC; do have "$c" && { command -v "$c"; return 0; }; done
@@ -284,43 +288,64 @@ find_iscc() {
   return 1
 }
 
-package_linux() {
+project_version() { sed -n 's/^CMAKE_PROJECT_VERSION:[A-Z]*=//p' "$BUILD_DIR/CMakeCache.txt" | head -n1; }
+
+package_game_linux() {
   have cpack || { fail "cpack not found (ships with CMake)"; return 1; }
   have dpkg-deb || { fail "dpkg-deb not found (install dpkg-dev)"; return 1; }
-  rm -f "$BUILD_DIR"/game-engine-demo_*.deb   # never let a stale package pass for a new one
+  rm -f "$BUILD_DIR"/funkshot_*.deb   # never let a stale package pass for a new one
   ( cd "$BUILD_DIR" && run_logged "logs/package.log" cpack -C "$CONFIG" ) || return 1
-  ls "$BUILD_DIR"/game-engine-demo_*_amd64.deb >/dev/null 2>&1 || { fail "cpack produced no .deb"; return 1; }
+  ls "$BUILD_DIR"/funkshot_*_amd64.deb >/dev/null 2>&1 || { fail "cpack produced no funkshot .deb"; return 1; }
 }
 
-package_windows() {
+package_game_windows() {
   local iscc version stage abs_build
   iscc="$(find_iscc)" || { fail "Inno Setup 6 (ISCC.exe) not found. Install it: choco install innosetup"; return 1; }
-  version="$(sed -n 's/^CMAKE_PROJECT_VERSION:[A-Z]*=//p' "$BUILD_DIR/CMakeCache.txt" | head -n1)"
+  version="$(project_version)"
   [ -n "$version" ] || { fail "cannot read the project version from $BUILD_DIR/CMakeCache.txt"; return 1; }
   abs_build="$(cd "$BUILD_DIR" && pwd)"
   stage="$abs_build/installer-stage"
   rm -rf "$stage"
-  run_logged "$LOG_DIR/package.log" cmake --install "$BUILD_DIR" --config "$CONFIG" --prefix "$stage" || return 1
-  rm -f "$BUILD_DIR/GameEngine-Setup.exe"
+  run_logged "$LOG_DIR/package.log" cmake --install "$BUILD_DIR" --config "$CONFIG" --component funkshot --prefix "$stage" || return 1
+  rm -f "$BUILD_DIR/FunkShot-Setup.exe"
   # MSYS rewrites arguments that start with "/" (ISCC's option style) into paths; switch that off for this call.
   MSYS2_ARG_CONV_EXCL='*' run_logged "$LOG_DIR/package-iscc.log" "$iscc" /Q "/DAppVersion=$version" \
-    "/DStageDir=$(cygpath -w "$stage")" "/O$(cygpath -w "$abs_build")" "$(cygpath -w "$ROOT/packaging/windows/GameEngine.iss")" || return 1
-  [ -f "$BUILD_DIR/GameEngine-Setup.exe" ] || { fail "Inno Setup produced no GameEngine-Setup.exe"; return 1; }
+    "/DStageDir=$(cygpath -w "$stage")" "/O$(cygpath -w "$abs_build")" "$(cygpath -w "$ROOT/packaging/windows/FunkShot.iss")" || return 1
+  [ -f "$BUILD_DIR/FunkShot-Setup.exe" ] || { fail "Inno Setup produced no FunkShot-Setup.exe"; return 1; }
+}
+
+package_sdk() {
+  local version abs_build top archive
+  version="$(project_version)"
+  [ -n "$version" ] || { fail "cannot read the project version from $BUILD_DIR/CMakeCache.txt"; return 1; }
+  abs_build="$(cd "$BUILD_DIR" && pwd)"
+  if [ "$OS" = "windows" ]; then top="SORTED-SDK-$version-windows-x64"; archive="$top.zip"; else top="SORTED-SDK-$version-linux-x86_64"; archive="$top.tar.gz"; fi
+  rm -rf "$abs_build/sdk-stage"; rm -f "$abs_build"/SORTED-SDK-*
+  run_logged "$LOG_DIR/package-sdk.log" cmake --install "$BUILD_DIR" --config "$CONFIG" --component sdk --prefix "$abs_build/sdk-stage/$top" || return 1
+  [ -f "$abs_build/sdk-stage/$top/lib/cmake/SORTED/SORTEDConfig.cmake" ] || { fail "no SDK was installed (configure with --sdl fetch)"; return 1; }
+  if [ "$OS" = "windows" ]; then
+    ( cd "$abs_build/sdk-stage" && cmake -E tar cf "../$archive" --format=zip -- "$top" ) || return 1
+  else
+    ( cd "$abs_build/sdk-stage" && cmake -E tar czf "../$archive" -- "$top" ) || return 1
+  fi
+  [ -f "$abs_build/$archive" ] || { fail "SDK archive was not written"; return 1; }
 }
 
 if [ "$PACKAGE" = 1 ]; then
   step "Package"
+  rc=0
   case "$OS" in
-    linux) package_linux; rc=$? ;;
-    windows) package_windows; rc=$? ;;
-    *) fail "packaging is supported on Linux (.deb) and Windows (Setup.exe) only"; rc=1 ;;
+    linux) package_game_linux || rc=1 ;;
+    windows) package_game_windows || rc=1 ;;
+    *) fail "packaging is supported on Linux and Windows only"; rc=1 ;;
   esac
+  [ "$rc" -eq 0 ] && { package_sdk || rc=1; }
   if [ "$rc" -ne 0 ]; then
     fail "packaging failed (stage: package)"
-    for l in "$LOG_DIR/package.log" "$LOG_DIR/package-iscc.log"; do [ -f "$l" ] && tail -n 15 "$l" | sed 's/^/    /' >&2; done
+    for l in "$LOG_DIR/package.log" "$LOG_DIR/package-iscc.log" "$LOG_DIR/package-sdk.log"; do [ -f "$l" ] && tail -n 15 "$l" | sed 's/^/    /' >&2; done
     exit 5
   fi
-  ok "package(s) written to $BUILD_DIR: $(cd "$BUILD_DIR" && ls game-engine-demo_*_amd64.deb GameEngine-Setup.exe 2>/dev/null | tr '\n' ' ')"
+  ok "package(s) written to $BUILD_DIR: $(cd "$BUILD_DIR" && ls funkshot_*_amd64.deb FunkShot-Setup.exe SORTED-SDK-* 2>/dev/null | tr '\n' ' ')"
 fi
 
 printf '%s==> Build succeeded%s (%s)\n' "$G" "$N" "$CONFIG"

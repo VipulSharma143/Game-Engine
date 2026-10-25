@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # start-all.sh - build (or verify) and launch the Game Engine demo.
-# Everything after "--" is passed to ge-demo unchanged.
+# Everything after "--" is passed to funkshot unchanged.
 #
 # Exit codes: 0 ok, 1 usage/missing prerequisite, 6 demo already running,
 #             other values: build.sh codes (2 configure, 3 build, 4 tests) or the demo's own exit code.
@@ -58,8 +58,8 @@ esac
 
 CONFIG_LC="$(printf '%s' "$CONFIG" | tr '[:upper:]' '[:lower:]')"
 BUILD_DIR="build/$CONFIG_LC"
-DEMO="$BUILD_DIR/ge-demo$EXE"
-LOCK="$BUILD_DIR/.ge-demo.pid"
+DEMO="$BUILD_DIR/funkshot$EXE"
+LOCK="$BUILD_DIR/.funkshot.pid"
 
 say()  { printf '[start-all] %s\n' "$*"; }
 die()  { printf '[start-all] error: %s\n' "$1" >&2; exit "${2:-1}"; }

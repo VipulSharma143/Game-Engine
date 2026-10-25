@@ -1,25 +1,46 @@
-# Game Engine
+# FunkShot and SORTED
 
-A small C++20 / NASM x86-64 engine foundation with a CPU raycasting renderer, built as the base for a retro first-person game.
+This repository contains two products that ship together:
 
-**Status: v0.1.0, a playable first-person demo.** See [CHANGELOG.md](CHANGELOG.md) for what the release contains and
+| Name | What it is | You get |
+| --- | --- | --- |
+| **FunkShot** | The game: a retro first-person shooter | `FunkShot-Setup.exe` (Windows), `funkshot_<version>_amd64.deb` (Linux) |
+| **SORTED** | The engine FunkShot is built on: a small C++20/NASM raycasting engine | `SORTED-SDK-<version>-windows-x64.zip`, `SORTED-SDK-<version>-linux-x86_64.tar.gz` |
+
+Play FunkShot if you want the game. Use SORTED if you want to make your own game: see [docs/USING_SORTED.md](docs/USING_SORTED.md).
+(Code layout: `engine/`, `include/engine/` and `asm/` are SORTED; `game/` and `assets/` are FunkShot. The repository is still
+named Game-Engine on GitHub.)
+
+**Status: a playable first-person game.** See [CHANGELOG.md](CHANGELOG.md) for what the release contains and
 [PROJECT_STATUS.md](PROJECT_STATUS.md) for the verified state of every component.
 
-## Install
+## Install FunkShot
 
-Download the packages from the [Releases page](https://github.com/VipulSharma143/Game-Engine/releases). No compiler,
-CMake, NASM or Git is needed to run them.
+Download from the [Releases page](https://github.com/VipulSharma143/Game-Engine/releases). No compiler, CMake, NASM or Git
+is needed to play.
 
 | System | File | Install | Run |
 | --- | --- | --- | --- |
-| Windows 10/11 x64 | `GameEngine-Setup.exe` | Double-click it (installs for the current user; the dialog offers all users). The C++ runtime and SDL3 are built in. | Start Menu -> Game Engine Demo. Uninstall from Settings -> Apps. |
-| Linux x86-64 | `game-engine-demo_<version>_amd64.deb` | `sudo apt install ./game-engine-demo_<version>_amd64.deb` | `ge-demo` |
+| Windows 10/11 x64 | `FunkShot-Setup.exe` | Double-click it (installs for the current user; the dialog offers all users). The C++ runtime and SDL3 are built in. | Start Menu -> FunkShot. Uninstall from Settings -> Apps. |
+| Linux x86-64 | `funkshot_<version>_amd64.deb` | `sudo apt install ./funkshot_<version>_amd64.deb` | `funkshot` |
 
 Linux requirements: a distribution with glibc 2.38 or newer and libstdc++ from GCC 13 or newer (Ubuntu 24.04, Linux Mint 22
 and later), and an X11 or Wayland desktop. `apt` also installs the recommended window-system and ALSA libraries. The
-package was verified on Ubuntu 24.04 only. The demo finds its levels in `/usr/share/game-engine/assets`, wherever you run it from.
+package was verified on Ubuntu 24.04 only. The game finds its levels in `/usr/share/funkshot/assets`, wherever you run it from.
 
-Check a download: `sha256sum -c SHA256SUMS.txt --ignore-missing` (Linux) or `certutil -hashfile GameEngine-Setup.exe SHA256` (Windows).
+Check a download: `sha256sum -c SHA256SUMS.txt --ignore-missing` (Linux) or `certutil -hashfile FunkShot-Setup.exe SHA256` (Windows).
+
+## Use SORTED to make your own game
+
+Download the SDK for your system (see the table above), unpack it, and in your CMake project:
+
+```cmake
+find_package(SORTED CONFIG REQUIRED)     # cmake -DCMAKE_PREFIX_PATH=<unpacked SDK>
+target_link_libraries(mygame PRIVATE sorted::engine)
+```
+
+Headers, the compiled engine and SDL3 are all inside the SDK. A complete first program is in `examples/hello-sorted/`.
+Full guide: [docs/USING_SORTED.md](docs/USING_SORTED.md).
 
 ## What works
 
@@ -38,7 +59,7 @@ The Windows/MSVC build and the installer are exercised by CI only; Clang has not
 | --- | --- |
 | `./build.sh` | Detects OS, compiler, CMake, NASM and SDL3, then configures, builds and tests. Options: `--debug/--release`, `--asm auto|on|off`, `--no-tests`, `--package` (.deb on Linux, Setup.exe on Windows), `--diagnose`, `--werror`, `--sanitize`, `-v`. Exit codes: 0 ok, 1 usage/missing tool, 2 configure, 3 build, 4 tests, 5 package. On a build failure it prints the failing target, source file and stage. Output goes to `build/<config>/`. |
 | `./release.sh X.Y.Z` | Validates, updates version and changelogs, confirms, commits, tags and pushes a release (see Releases and CI). |
-| `./start-all.sh` | Builds (or with `--no-build` verifies existing binaries), checks prerequisites, refuses a second instance (`--allow-multiple` overrides), launches `ge-demo` and shuts it down cleanly on Ctrl+C. Demo arguments follow `--`. |
+| `./start-all.sh` | Builds (or with `--no-build` verifies existing binaries), checks prerequisites, refuses a second instance (`--allow-multiple` overrides), launches `funkshot` and shuts it down cleanly on Ctrl+C. Demo arguments follow `--`. |
 | `./clean.sh` | Removes only known generated paths (`build/`, `out/`, `*.ppm`). `--deep` also removes stray CMake files and root-level packages; `--dry-run` previews. Safe to repeat. |
 
 The scripts run on Linux and in Git Bash/MSYS2 on Windows. `build.sh` and the installer step were run on Linux here; the Windows path is exercised by CI.
@@ -106,8 +127,8 @@ writes the demo's sound track (16-bit stereo, 44.1 kHz), so you can hear what th
 ## Releases and CI
 
 One workflow, `.github/workflows/ci.yml`, builds and tests Linux and Windows in parallel on every push and pull request to
-`main`. Pushing a tag `vX.Y.Z` publishes a GitHub Release containing only `GameEngine-Setup.exe`,
-`game-engine-demo_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, and only if both builds passed.
+`main`. Pushing a tag `vX.Y.Z` publishes a GitHub Release containing only `FunkShot-Setup.exe`,
+`funkshot_X.Y.Z_amd64.deb`, `SORTED-SDK-X.Y.Z-windows-x64.zip`, `SORTED-SDK-X.Y.Z-linux-x86_64.tar.gz` and `SHA256SUMS.txt`, and only if both builds passed.
 
 To make a release, commit your work to `main`, add a `## [X.Y.Z] - Unreleased` section to `CHANGELOG.md`, then run:
 
@@ -116,15 +137,20 @@ To make a release, commit your work to `main`, add a `## [X.Y.Z] - Unreleased` s
 ./release.sh X.Y.Z             # validates, updates version + changelogs, asks you to confirm, commits, tags, pushes
 ```
 
-The version lives in one place, `project(GameEngine VERSION ...)` in `CMakeLists.txt`; `release.sh` updates it. Details,
+The version lives in one place, `project(SORTED VERSION ...)` in `CMakeLists.txt`; `release.sh` updates it. Details,
 changelog rules and recovery from a failed release: [docs/CI_CD.md](docs/CI_CD.md).
 
 ## Building the packages locally
 
-`./build.sh --release --sdl fetch --package` builds, tests and then writes `build/release/game-engine-demo_<version>_amd64.deb`
-on Linux (needs `dpkg-dev`) or `build/release/GameEngine-Setup.exe` on Windows (needs [Inno Setup 6](https://jrsoftware.org/isinfo.php),
-`choco install innosetup`). With `--sdl fetch` SDL3 is linked in statically. The package depends on the C library of the
-machine it was built on, so build on the oldest distribution you want to support.
+`./build.sh --release --sdl fetch --package` builds, tests and then writes both products to `build/release/`:
+
+- FunkShot: `funkshot_<version>_amd64.deb` on Linux (needs `dpkg-dev`) or `FunkShot-Setup.exe` on Windows (needs
+  [Inno Setup 6](https://jrsoftware.org/isinfo.php), `choco install innosetup`).
+- SORTED SDK: `SORTED-SDK-<version>-linux-x86_64.tar.gz` or `SORTED-SDK-<version>-windows-x64.zip`.
+  `bash tools/sdk-smoke-test.sh <that archive>` unpacks it elsewhere and builds the example against it.
+
+With `--sdl fetch` SDL3 is linked in statically. The packages depend on the C library of the machine they were built on, so
+build on the oldest distribution you want to support.
 
 ## Prerequisites (building from source)
 
@@ -160,9 +186,9 @@ See [docs/BUILDING.md](docs/BUILDING.md).
 ## Run the demo
 
 ```bash
-./build/ge-demo --ascii                          # 300 frames, prints the last frame as ASCII
-./build/ge-demo --width 640 --height 400 --ppm frame.ppm   # writes an image of the last frame
-./build/ge-demo --help
+./build/funkshot --ascii                          # 300 frames, prints the last frame as ASCII
+./build/funkshot --width 640 --height 400 --ppm frame.ppm   # writes an image of the last frame
+./build/funkshot --help
 ```
 
 The demo walks a scripted tour through the built-in 16x16 level with a virtual clock, so results are repeatable. It prints a summary line such as
@@ -185,7 +211,7 @@ asm/x86_64/                 NASM sources (common + linux: System V, windows: Win
 tests/                      unit, platform, assembly, integration (+ tiny test harness in tests/support)
 tools/benchmark-runner/     ge-bench
 cmake/  docs/  assets/      build modules, documentation, levels and settings
-packaging/windows/          Inno Setup script for GameEngine-Setup.exe
+packaging/windows/          Inno Setup script for FunkShot-Setup.exe
 tools/                      benchmark runner, changelog.py (changelog sync + validation) and its tests
 release.sh                  one-command release
 ```

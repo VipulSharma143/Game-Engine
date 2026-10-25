@@ -20,6 +20,7 @@ Thumbs.db
 _CPack_Packages/
 *.tar.gz
 *.deb
-GameEngine-Setup.exe
+FunkShot-Setup.exe
+SORTED-SDK-*
 *.sha256
 out/

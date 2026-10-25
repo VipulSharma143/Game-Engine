@@ -174,10 +174,10 @@ TEST(assets_dir_detection_and_env_override) {
 #else
     setenv("GE_ASSETS", dir.path.string().c_str(), 1);
 #endif
-    const auto candidates = ge::asset_dir_candidates("/some/where/build/release/ge-demo");
+    const auto candidates = ge::asset_dir_candidates("/some/where/build/release/funkshot");
     CHECK(candidates.size() >= 5u);
     CHECK(candidates[0] == dir.path);
-    const auto found = ge::find_assets_dir("/some/where/build/release/ge-demo");
+    const auto found = ge::find_assets_dir("/some/where/build/release/funkshot");
     CHECK(found.has_value());
 #if defined(_WIN32)
     _putenv_s("GE_ASSETS", "");
@@ -193,7 +193,7 @@ TEST(asset_search_resolves_a_bare_executable_name) {
     std::error_code ec;
     const fs::path self = fs::read_symlink("/proc/self/exe", ec);
     CHECK(!ec);
-    const auto candidates = ge::asset_dir_candidates("ge-demo");
+    const auto candidates = ge::asset_dir_candidates("funkshot");
     bool found_next_to_exe = false;
     for (const fs::path& c : candidates) found_next_to_exe = found_next_to_exe || c == fs::absolute(self.parent_path()) / "assets";
     CHECK(found_next_to_exe);

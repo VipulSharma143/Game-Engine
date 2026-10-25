@@ -129,7 +129,7 @@ void centered(ge::Framebuffer& fb, int y, const std::string& text, std::uint32_t
 void draw_menu_screen(ge::Framebuffer& fb, const HudData& d) {
     dim(fb, 45);
     const int h = fb.height();
-    centered(fb, h / 5, "GAME ENGINE", ge::pack_rgb(250, 220, 90), 3);
+    centered(fb, h / 5, "FUNKSHOT", ge::pack_rgb(250, 220, 90), 3);
     centered(fb, h / 5 + 32, "TARGET RANGE", ge::pack_rgb(235, 235, 235), 2);
     centered(fb, h / 2 - 4, std::string("LEVEL: ") + d.level_name, ge::pack_rgb(190, 230, 255));
     char buf[48];

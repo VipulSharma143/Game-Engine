@@ -7,7 +7,7 @@ namespace ge {
 namespace fs = std::filesystem;
 
 namespace {
-// argv[0] is only "ge-demo" when the program was started through PATH, which is how an installed package is
+// argv[0] is only "funkshot" when the program was started through PATH, which is how an installed package is
 // normally launched. In that case the real location of the executable has to come from the OS.
 fs::path resolve_executable(const fs::path& given) {
     if (given.has_parent_path()) return given;
@@ -37,7 +37,7 @@ std::vector<fs::path> asset_dir_candidates(const fs::path& executable) {
     fs::path dir = exe.has_parent_path() ? exe.parent_path() : fs::path(".");
     dir = fs::absolute(dir, ec);
     out.push_back(dir / "assets");
-    out.push_back(dir / ".." / "share" / "game-engine" / "assets");  // installed / unpacked package layout
+    out.push_back(dir / ".." / "share" / "funkshot" / "assets");  // installed / unpacked package layout
     out.push_back(dir / ".." / "assets");
     out.push_back(dir / ".." / ".." / "assets");
     out.push_back(dir / ".." / ".." / ".." / "assets");

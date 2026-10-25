@@ -25,7 +25,7 @@ class ChangelogTest(unittest.TestCase):
         self.set_cmake("0.3.0")
 
     def set_cmake(self, version):
-        (self.root / "CMakeLists.txt").write_text(f"project(GameEngine VERSION {version} LANGUAGES CXX)\n")
+        (self.root / "CMakeLists.txt").write_text(f"project(SORTED VERSION {version} LANGUAGES CXX)\n")
 
     def write(self, name, text):
         (self.root / name).write_text(text)

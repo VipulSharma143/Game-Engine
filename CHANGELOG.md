@@ -1,8 +1,23 @@
 # Changelog
 
-All notable changes to Game Engine are recorded here, newest first. Only the two newest releases are kept in this
-file; older releases are in [ARCHIVE_CHANGELOG.md](ARCHIVE_CHANGELOG.md). `tools/changelog.py` keeps both files in
-sync, and `./release.sh` fills in the release date. See [AGENTS.md](AGENTS.md) for the rules.
+All notable changes to FunkShot (the game) and SORTED (the engine it is built on) are recorded here, newest first. Only the
+two newest releases are kept in this file; older releases are in [ARCHIVE_CHANGELOG.md](ARCHIVE_CHANGELOG.md).
+`tools/changelog.py` keeps both files in sync, and `./release.sh` fills in the release date. See [AGENTS.md](AGENTS.md) for the rules.
+
+## [0.2.0] - Unreleased
+
+### Features
+
+- SORTED engine SDK for Windows x64 (MSVC) and Linux x86-64 (`SORTED-SDK-<version>-windows-x64.zip`, `SORTED-SDK-<version>-linux-x86_64.tar.gz`): headers, the compiled engine library, bundled SDL3 and a CMake package. Use it with `find_package(SORTED)` and the target `sorted::engine`; a minimal example program and a guide (`docs/USING_SORTED.md`) are included.
+
+### Improvements
+
+- The game is now called FunkShot and the engine SORTED, so the two are no longer confused: the title screen, installer, Start Menu entry and Linux package use the game name, and the SDK uses the engine name.
+- Releases publish exactly four packages plus `SHA256SUMS.txt`: `FunkShot-Setup.exe`, `funkshot_<version>_amd64.deb` and the two SDK archives.
+
+### Breaking Changes
+
+- Renamed from 0.1.0: the executable `ge-demo` is now `funkshot`, `GameEngine-Setup.exe` is now `FunkShot-Setup.exe`, and the Linux package `game-engine-demo` is now `funkshot` (assets in `/usr/share/funkshot/assets`). Remove the old `game-engine-demo` package before installing `funkshot`.
 
 ## [0.1.0] - 2026-10-24
 

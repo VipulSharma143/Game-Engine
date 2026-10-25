@@ -35,7 +35,7 @@ TEST(config_rejects_bad_values) {
 
 TEST(config_parses_arguments) {
     ge::EngineConfig c;
-    const char* argv[] = {"ge-demo", "--width", "640", "--height", "400", "--frames", "10", "--deterministic",
+    const char* argv[] = {"funkshot", "--width", "640", "--height", "400", "--frames", "10", "--deterministic",
                           "--ascii", "--log-level", "warn", "--fov", "75.5"};
     const ge::ParseResult r = ge::parse_arguments(13, argv, c);
     CHECK(r.ok);

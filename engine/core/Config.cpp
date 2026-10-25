@@ -127,7 +127,7 @@ ParseResult parse_arguments(int argc, const char* const* argv, EngineConfig& con
 }
 
 const char* usage_text() noexcept {
-    return "Usage: ge-demo [options]\n"
+    return "Usage: funkshot [options]\n"
            "  --width N / --height N   framebuffer size (default 320x200)\n"
            "  --fov DEG                horizontal field of view (default 66)\n"
            "  --frames N               frames to run (default 300; 0 = until quit, window only)\n"

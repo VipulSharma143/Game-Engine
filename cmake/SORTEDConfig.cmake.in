@@ -1,0 +1,30 @@
+# SORTED SDK package: defines the imported target sorted::engine. Use:
+#   find_package(SORTED CONFIG REQUIRED)        # with CMAKE_PREFIX_PATH pointing at the unpacked SDK
+#   target_link_libraries(mygame PRIVATE sorted::engine)
+# On Windows the SDK is built with the static MSVC runtime: set CMAKE_MSVC_RUNTIME_LIBRARY to "MultiThreaded".
+include(CMakeFindDependencyMacro)
+get_filename_component(_sorted_prefix "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+
+if(NOT TARGET sorted::sdl3)
+  add_library(sorted::sdl3 STATIC IMPORTED)
+  set_target_properties(sorted::sdl3 PROPERTIES IMPORTED_LOCATION "${_sorted_prefix}/lib/$<TARGET_FILE_NAME:SDL3-static>")
+  if(WIN32)
+    set_property(TARGET sorted::sdl3 PROPERTY INTERFACE_LINK_LIBRARIES
+                 user32 gdi32 winmm imm32 ole32 oleaut32 version uuid advapi32 setupapi shell32 cfgmgr32)
+  else()
+    find_dependency(Threads)
+    set_property(TARGET sorted::sdl3 PROPERTY INTERFACE_LINK_LIBRARIES Threads::Threads m ${CMAKE_DL_LIBS})
+  endif()
+endif()
+
+if(NOT TARGET sorted::engine)
+  add_library(sorted::engine STATIC IMPORTED)
+  set_target_properties(sorted::engine PROPERTIES
+    IMPORTED_LOCATION "${_sorted_prefix}/lib/$<TARGET_FILE_NAME:ge_engine>"
+    IMPORTED_LINK_INTERFACE_LANGUAGES CXX
+    INTERFACE_INCLUDE_DIRECTORIES "${_sorted_prefix}/include/sorted"
+    INTERFACE_COMPILE_DEFINITIONS "@GE_SDK_DEFINITIONS@"
+    INTERFACE_COMPILE_FEATURES cxx_std_20
+    INTERFACE_LINK_LIBRARIES sorted::sdl3)
+endif()
+unset(_sorted_prefix)

@@ -1,8 +1,10 @@
 # The only workflow. Linux and Windows build, test and package in parallel; every build step is a call to
-# ./build.sh, so CI runs the same commands as a developer machine.
+# ./build.sh, so CI runs the same commands as a developer machine. Two products come out of it:
+#   FunkShot (the game)  - funkshot_<version>_amd64.deb and FunkShot-Setup.exe
+#   SORTED   (the engine) - SORTED-SDK-<version>-linux-x86_64.tar.gz and SORTED-SDK-<version>-windows-x64.zip
 #
 #   push / pull request to main : build + test + package both platforms, keep the packages 7 days as artifacts
-#   tag vX.Y.Z                  : the same, then ONE GitHub Release with GameEngine-Setup.exe, the .deb and
+#   tag vX.Y.Z                  : the same, then ONE GitHub Release with those four packages and
 #                                 SHA256SUMS.txt - published only if both builds succeeded
 #
 # Tags are created by ./release.sh on a developer machine, never by this workflow. See docs/CI_CD.md.
@@ -24,7 +26,7 @@ concurrency:
 
 jobs:
   linux:
-    name: Linux x86-64 (.deb)
+    name: Linux x86-64 (FunkShot .deb, SORTED SDK)
     # ./release.sh pushes the release commit and its tag together; the tag run builds it, so skip the duplicate.
     if: "github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'chore(release): v')"
     runs-on: ubuntu-24.04
@@ -50,6 +52,8 @@ jobs:
           path: |
             build/release
             !build/release/*.deb
+            !build/release/SORTED-SDK-*
+            !build/release/sdk-stage
           key: linux-build-${{ env.IMAGE }}-${{ hashFiles('cmake/Dependencies.cmake') }}
 
       - name: Check the changelog
@@ -63,23 +67,28 @@ jobs:
       - name: Install the .deb and run it from outside the repository
         run: |
           set -eu
-          sudo apt-get install -y ./build/release/game-engine-demo_*_amd64.deb
+          sudo apt-get install -y ./build/release/funkshot_*_amd64.deb
           cd /
-          levels=$(env -i PATH=/usr/bin:/bin ge-demo --list-levels)
+          levels=$(env -i PATH=/usr/bin:/bin funkshot --list-levels)
           echo "$levels"
           echo "$levels" | grep -qx bunker
-          run=$(env -i PATH=/usr/bin:/bin ge-demo --headless --level bunker)
+          run=$(env -i PATH=/usr/bin:/bin funkshot --headless --level bunker)
           echo "$run" | grep -q "level: Bunker"
+
+      - name: Build a program against the SORTED SDK
+        run: bash tools/sdk-smoke-test.sh build/release/SORTED-SDK-*-linux-x86_64.tar.gz
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-deb
-          path: build/release/game-engine-demo_*_amd64.deb
+          name: linux-packages
+          path: |
+            build/release/funkshot_*_amd64.deb
+            build/release/SORTED-SDK-*-linux-x86_64.tar.gz
           if-no-files-found: error
           retention-days: 7
 
   windows:
-    name: Windows x64 (Setup.exe)
+    name: Windows x64 (FunkShot Setup.exe, SORTED SDK)
     if: "github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'chore(release): v')"
     runs-on: windows-latest
     timeout-minutes: 45
@@ -110,7 +119,9 @@ jobs:
         with:
           path: |
             build/release
-            !build/release/GameEngine-Setup.exe
+            !build/release/FunkShot-Setup.exe
+            !build/release/SORTED-SDK-*
+            !build/release/sdk-stage
             !build/release/installer-stage
           key: windows-build-${{ env.IMAGE }}-${{ hashFiles('cmake/Dependencies.cmake') }}
 
@@ -119,34 +130,39 @@ jobs:
       - name: Build, test and package (Release)
         run: bash ./build.sh --release --sdl fetch --package
 
-      - name: Install GameEngine-Setup.exe, run the demo, uninstall
+      - name: Install FunkShot-Setup.exe, run the game, uninstall
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $setup = (Resolve-Path build/release/GameEngine-Setup.exe).Path
-          $dir = Join-Path $env:RUNNER_TEMP 'GameEngine'
+          $setup = (Resolve-Path build/release/FunkShot-Setup.exe).Path
+          $dir = Join-Path $env:RUNNER_TEMP 'FunkShot'
           $log = Join-Path $env:RUNNER_TEMP 'setup.log'
           $p = Start-Process $setup -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$dir", "/LOG=$log"
           if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40; throw "installer exited with $($p.ExitCode)" }
-          $exe = Join-Path $dir 'bin\ge-demo.exe'
-          if (-not (Test-Path $exe)) { throw "ge-demo.exe was not installed" }
-          $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Game Engine Demo.lnk'
+          $exe = Join-Path $dir 'bin\funkshot.exe'
+          if (-not (Test-Path $exe)) { throw "funkshot.exe was not installed" }
+          $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\FunkShot.lnk'
           if (-not (Test-Path $shortcut)) { throw "Start Menu shortcut is missing" }
           Push-Location $env:TEMP    # not the install or source directory
           $levels = & $exe --list-levels
           Write-Host ($levels -join ', ')
-          if ($levels -notcontains 'bunker') { throw "installed demo cannot find its assets" }
+          if ($levels -notcontains 'bunker') { throw "installed game cannot find its assets" }
           $run = & $exe --headless --level bunker
-          if (-not ($run -match 'level: Bunker')) { throw "installed demo did not run the bunker level" }
+          if (-not ($run -match 'level: Bunker')) { throw "installed game did not run the bunker level" }
           Pop-Location
           Start-Process (Join-Path $dir 'unins000.exe') -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
           for ($i = 0; $i -lt 60 -and (Test-Path $exe); $i++) { Start-Sleep -Milliseconds 500 }   # the uninstaller finishes in a copy of itself
-          if (Test-Path $exe) { throw "uninstall left ge-demo.exe behind" }
+          if (Test-Path $exe) { throw "uninstall left funkshot.exe behind" }
+
+      - name: Build a program against the SORTED SDK
+        run: bash tools/sdk-smoke-test.sh build/release/SORTED-SDK-*-windows-x64.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-setup
-          path: build/release/GameEngine-Setup.exe
+          name: windows-packages
+          path: |
+            build/release/FunkShot-Setup.exe
+            build/release/SORTED-SDK-*-windows-x64.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -185,10 +201,10 @@ jobs:
           version="${TAG#v}"
           cd dist
           ls -l
-          test -f GameEngine-Setup.exe
-          test -f "game-engine-demo_${version}_amd64.deb"
-          test "$(ls | wc -l)" = 2
-          sha256sum GameEngine-Setup.exe "game-engine-demo_${version}_amd64.deb" > SHA256SUMS.txt
+          files="FunkShot-Setup.exe funkshot_${version}_amd64.deb SORTED-SDK-${version}-windows-x64.zip SORTED-SDK-${version}-linux-x86_64.tar.gz"
+          for f in $files; do test -f "$f"; done
+          test "$(ls | wc -l)" = 4    # exactly these four, nothing else
+          sha256sum $files > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
           cd ..
           python3 tools/changelog.py notes "$version" > notes.md

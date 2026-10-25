@@ -5,9 +5,9 @@ developer machine.
 
 | Job | Runs on | What it does |
 | --- | --- | --- |
-| `linux` | ubuntu-24.04 | changelog checks; `./build.sh --release --sdl fetch --werror --package` (build, 17 tests, `.deb`); installs the `.deb` and runs it from `/` with an empty environment |
-| `windows` | windows-latest | MSVC x64 + NASM + Inno Setup: `./build.sh --release --sdl fetch --package` (build, tests, `GameEngine-Setup.exe`); silently installs it, checks the Start Menu shortcut, runs the installed demo, uninstalls |
-| `release` | ubuntu-24.04 | Tags only, and only after both jobs passed: checks the tag is on `main`, matches `CMakeLists.txt` and has a dated changelog entry, that no release for it exists, then publishes **one** release with `GameEngine-Setup.exe`, `game-engine-demo_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, using the changelog entry as notes |
+| `linux` | ubuntu-24.04 | changelog checks; `./build.sh --release --sdl fetch --werror --package` (build, 17 tests, FunkShot `.deb`, SORTED SDK `.tar.gz`); installs the `.deb` and runs it from `/` with an empty environment; builds the SDK example against the unpacked SDK (`tools/sdk-smoke-test.sh`) |
+| `windows` | windows-latest | MSVC x64 + NASM + Inno Setup: `./build.sh --release --sdl fetch --package` (build, tests, `FunkShot-Setup.exe`, SORTED SDK `.zip`); silently installs the game, checks the Start Menu shortcut, runs the installed game, uninstalls; builds the SDK example against the unpacked SDK |
+| `release` | ubuntu-24.04 | Tags only, and only after both jobs passed: checks the tag is on `main`, matches `CMakeLists.txt` and has a dated changelog entry, that no release for it exists, then publishes **one** release with exactly `FunkShot-Setup.exe`, `funkshot_X.Y.Z_amd64.deb`, `SORTED-SDK-X.Y.Z-windows-x64.zip`, `SORTED-SDK-X.Y.Z-linux-x86_64.tar.gz` and `SHA256SUMS.txt`, using the changelog entry as notes |
 
 Triggers: pushes and pull requests to `main`, and tags `vX.Y.Z`. Newer pushes cancel older runs of the same ref; release
 runs are never cancelled. The release commit made by `release.sh` is skipped on the branch run because the tag run builds it.
@@ -19,7 +19,7 @@ hash of `cmake/Dependencies.cmake`). Changed sources rebuild; SDL3 does not. Loc
 
 ## Version and changelog
 
-- The version is `project(GameEngine VERSION x.y.z ...)` in `CMakeLists.txt`. Package names, the installer, the release
+- The version is `project(SORTED VERSION x.y.z ...)` in `CMakeLists.txt`. Package names, the installer, the release
   title and the tag all derive from or are checked against it.
 - `CHANGELOG.md`: the two newest releases (and at most one `## [X.Y.Z] - Unreleased` entry on top). `ARCHIVE_CHANGELOG.md`:
   older releases, newest first. Format: `## [X.Y.Z] - YYYY-MM-DD`, then `### Features`, `### Improvements`, `### Bug Fixes`,
@@ -57,10 +57,13 @@ Nothing is ever deleted or overwritten automatically.
 
 ## Windows notes
 
-The installer installs `bin\ge-demo.exe`, `share\game-engine\assets\` and docs, per user by default (`/ALLUSERS` or the
+The FunkShot installer installs `bin\funkshot.exe`, `share\funkshot\assets\` and docs, per user by default (`/ALLUSERS` or the
 dialog for Program Files), with a Start Menu shortcut and an uninstaller. The exe links the C++ runtime and SDL3 statically
 (`GE_STATIC_CRT`, `GE_SDL=FETCH`), so no redistributable or DLL is needed. The Windows job has not been run on GitHub yet:
 expect the first run to need small fixes; send the failing step's log.
 
 To build the installer by hand: x64 Native Tools prompt, NASM, Ninja and Inno Setup 6 installed, then
 `bash build.sh --release --sdl fetch --package` from Git Bash.
+
+The SORTED SDK for Windows is built with the static MSVC runtime, which the example and `docs/USING_SORTED.md` tell users to match.
+Its Windows system-library list (`cmake/SORTEDConfig.cmake.in`) is checked only by the CI smoke test.

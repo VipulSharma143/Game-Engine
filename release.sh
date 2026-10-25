@@ -78,8 +78,8 @@ restore() {
 }
 trap restore EXIT
 
-current="$(sed -n 's/^project(GameEngine VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt | head -n1)"
-[ -n "$current" ] || die "CMakeLists.txt has no project(GameEngine VERSION x.y.z ...) line"
+current="$(sed -n 's/^project(SORTED VERSION \([0-9][0-9.]*\).*/\1/p' CMakeLists.txt | head -n1)"
+[ -n "$current" ] || die "CMakeLists.txt has no project(SORTED VERSION x.y.z ...) line"
 if [ "$(git log -1 --format=%s)" = "$MESSAGE" ] && [ -z "$(git status --porcelain)" ]; then
   say "HEAD is already the release commit for $TAG; checking it"
   "$PY" tools/changelog.py check --tag "$TAG"
@@ -88,7 +88,7 @@ else
   PREPARED=0
   [ "$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | tail -n1)" = "$VERSION" ] || die "$VERSION is lower than the current version $current"
   if [ "$current" != "$VERSION" ]; then
-    sed -E "s/^(project\(GameEngine VERSION )[0-9]+\.[0-9]+\.[0-9]+/\1$VERSION/" CMakeLists.txt > CMakeLists.txt.new
+    sed -E "s/^(project\(SORTED VERSION )[0-9]+\.[0-9]+\.[0-9]+/\1$VERSION/" CMakeLists.txt > CMakeLists.txt.new
     mv CMakeLists.txt.new CMakeLists.txt
   fi
   "$PY" tools/changelog.py release "$VERSION"

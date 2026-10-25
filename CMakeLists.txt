@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(GameEngine VERSION 0.1.0 DESCRIPTION "Small C++20/NASM raycasting game engine foundation" LANGUAGES CXX)
+project(SORTED VERSION 0.1.0 DESCRIPTION "SORTED: a small C++20/NASM raycasting game engine" LANGUAGES CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -66,6 +66,9 @@ add_library(ge_engine STATIC
   engine/world/LevelLoader.cpp
   engine/world/World.cpp)
 add_library(ge::engine ALIAS ge_engine)
+add_library(sorted::engine ALIAS ge_engine)
+# The SORTED engine library is libsorted.a / sorted.lib (the SDK ships it under that name).
+set_target_properties(ge_engine PROPERTIES OUTPUT_NAME sorted)
 target_include_directories(ge_engine PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_features(ge_engine PUBLIC cxx_std_20)
 ge_enable_warnings(ge_engine)
@@ -73,7 +76,7 @@ ge_enable_sanitizers(ge_engine)
 ge_link_assembly(ge_engine)
 ge_link_sdl(ge_engine)
 
-# ---- game (library + demo executable) ----------------------------------------
+# ---- FunkShot: the game (library + executable) built on the engine ----------------------------------------
 add_library(ge_game STATIC
   game/src/DemoTour.cpp
   game/src/GameApplication.cpp
@@ -89,17 +92,16 @@ target_link_libraries(ge_game PUBLIC ge_engine)
 ge_enable_warnings(ge_game)
 ge_enable_sanitizers(ge_game)
 
-add_executable(ge_demo game/src/main.cpp)
-set_target_properties(ge_demo PROPERTIES OUTPUT_NAME ge-demo)
-target_link_libraries(ge_demo PRIVATE ge_game)
-ge_enable_warnings(ge_demo)
-ge_enable_sanitizers(ge_demo)
+add_executable(funkshot game/src/main.cpp)
+target_link_libraries(funkshot PRIVATE ge_game)
+ge_enable_warnings(funkshot)
+ge_enable_sanitizers(funkshot)
 if(WIN32 AND GE_SDL_ENABLED)
-  # Put SDL3.dll next to ge-demo.exe when SDL3 is a shared library. With a static SDL3 (GE_SDL=FETCH)
+  # Put SDL3.dll next to funkshot.exe when SDL3 is a shared library. With a static SDL3 (GE_SDL=FETCH)
   # the DLL list is empty, and "copy" with no files would fail, so the command becomes "true" then.
-  add_custom_command(TARGET ge_demo POST_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:ge_demo>>,copy,true>
-                             $<TARGET_RUNTIME_DLLS:ge_demo> $<TARGET_FILE_DIR:ge_demo>
+  add_custom_command(TARGET funkshot POST_BUILD
+                     COMMAND ${CMAKE_COMMAND} -E $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:funkshot>>,copy,true>
+                             $<TARGET_RUNTIME_DLLS:funkshot> $<TARGET_FILE_DIR:funkshot>
                      COMMAND_EXPAND_LISTS)
 endif()
 
@@ -112,5 +114,6 @@ if(GE_BUILD_TOOLS)
   add_subdirectory(tools/benchmark-runner)
 endif()
 include(Packaging)
+include(Sdk)
 
-message(STATUS "GameEngine ${PROJECT_VERSION}: platform=${GE_PLATFORM_NAME} build=${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES} assembly=${GE_ASM_STATUS} sdl=${GE_SDL_STATUS}")
+message(STATUS "SORTED ${PROJECT_VERSION}: platform=${GE_PLATFORM_NAME} build=${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES} assembly=${GE_ASM_STATUS} sdl=${GE_SDL_STATUS}")
