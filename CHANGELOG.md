@@ -4,7 +4,7 @@ All notable changes to FunkShot (the game) and SORTED (the engine it is built on
 two newest releases are kept in this file; older releases are in [ARCHIVE_CHANGELOG.md](ARCHIVE_CHANGELOG.md).
 `tools/changelog.py` keeps both files in sync, and `./release.sh` fills in the release date. See [AGENTS.md](AGENTS.md) for the rules.
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-10-25
 
 ### Features
 
