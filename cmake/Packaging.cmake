@@ -4,10 +4,10 @@
 #     Linux:   ./build.sh --package  ->  CPack writes funkshot_<version>_amd64.deb
 #     Windows: ./build.sh --package  ->  stages "cmake --install", then Inno Setup builds FunkShot-Setup.exe
 #              (packaging/windows/FunkShot.iss; CPack is not used on Windows)
-#   SORTED SDK (the engine, component "sdk", cmake/Sdk.cmake)
-#     Linux:   the same cpack run also writes sorted-sdk_<version>_amd64.deb (installs under /usr)
-#     Windows: stage "cmake --install --component sdk", then Inno Setup builds SORTED-SDK-Setup.exe
-#              (packaging/windows/SORTED-SDK.iss)
+#   SORTED (the engine, component "sorted", cmake/Sorted.cmake): the Viewer program plus the developer files
+#     Linux:   the same cpack run also writes sorted_<version>_amd64.deb (installs under /usr)
+#     Windows: stage "cmake --install --component sorted", then Inno Setup builds SORTED-Setup.exe
+#              (packaging/windows/SORTED.iss)
 #
 # Game layout (identical on both systems, and what find_assets_dir() in AssetPath.cpp already searches):
 #   bin/funkshot[.exe]   share/funkshot/assets/   share/doc/funkshot/{README.md,LICENSE}
@@ -16,6 +16,9 @@ include(GNUInstallDirs)
 install(TARGETS funkshot RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT funkshot)
 install(DIRECTORY assets/ DESTINATION ${CMAKE_INSTALL_DATADIR}/funkshot/assets COMPONENT funkshot PATTERN ".gitkeep" EXCLUDE)
 install(FILES README.md LICENSE DESTINATION ${CMAKE_INSTALL_DOCDIR} COMPONENT funkshot)
+if(UNIX)
+  install(FILES packaging/linux/funkshot.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications COMPONENT funkshot)
+endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CPACK_GENERATOR DEB)
@@ -28,8 +31,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CPACK_STRIP_FILES ON)
   set(CPACK_DEB_COMPONENT_INSTALL ON)                   # one .deb per component
   set(CPACK_COMPONENTS_ALL funkshot)
-  if(GE_SDL STREQUAL "FETCH" AND GE_SDL_ENABLED)    # the SDK exists only when SDL3 can be bundled (cmake/Sdk.cmake)
-    list(APPEND CPACK_COMPONENTS_ALL sdk)
+  if(GE_SDL STREQUAL "FETCH" AND GE_SDL_ENABLED)    # SORTED needs SDL3 bundled (cmake/Sorted.cmake)
+    list(APPEND CPACK_COMPONENTS_ALL sorted)
   endif()
   set(CPACK_DEBIAN_FUNKSHOT_PACKAGE_NAME "funkshot")
   set(CPACK_DEBIAN_FUNKSHOT_FILE_NAME DEB-DEFAULT)      # funkshot_<version>_amd64.deb
@@ -38,12 +41,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   # SDL3 is linked statically (GE_SDL=FETCH) but loads the window-system and audio libraries at run time,
   # so they cannot be found by shlibdeps. A desktop with X11 or Wayland already has them.
   set(CPACK_DEBIAN_FUNKSHOT_PACKAGE_RECOMMENDS "libx11-6 | libwayland-client0, libasound2t64 | libasound2, libgl1")
-  set(CPACK_DEBIAN_SDK_PACKAGE_NAME "sorted-sdk")
-  set(CPACK_DEBIAN_SDK_FILE_NAME DEB-DEFAULT)           # sorted-sdk_<version>_amd64.deb
-  set(CPACK_DEBIAN_SDK_PACKAGE_SECTION "devel")
-  set(CPACK_DEBIAN_SDK_PACKAGE_SHLIBDEPS OFF)           # static libraries and headers only, no binaries
-  set(CPACK_DEBIAN_SDK_PACKAGE_DESCRIPTION "SORTED engine SDK: headers, static library and CMake package (find_package(SORTED)) for building games on the SORTED engine")
-  set(CPACK_DEBIAN_SDK_PACKAGE_RECOMMENDS "cmake, g++, ninja-build")
+  set(CPACK_DEBIAN_SORTED_PACKAGE_NAME "sorted")
+  set(CPACK_DEBIAN_SORTED_FILE_NAME DEB-DEFAULT)        # sorted_<version>_amd64.deb
+  set(CPACK_DEBIAN_SORTED_PACKAGE_SECTION "devel")
+  set(CPACK_DEBIAN_SORTED_PACKAGE_SHLIBDEPS ON)         # sorted-viewer links libc6, libstdc++6, ...
+  set(CPACK_DEBIAN_SORTED_PACKAGE_DESCRIPTION "SORTED engine: the SORTED Viewer program, plus headers, static library and CMake package (find_package(SORTED)) for building games on it")
+  set(CPACK_DEBIAN_SORTED_PACKAGE_RECOMMENDS "libx11-6 | libwayland-client0, libasound2t64 | libasound2, libgl1")
+  set(CPACK_DEBIAN_SORTED_PACKAGE_SUGGESTS "cmake, g++, ninja-build")   # only needed to develop with the engine
   include(CPack)
 endif()
 

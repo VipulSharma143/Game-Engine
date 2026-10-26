@@ -5,10 +5,10 @@ This repository contains two products that ship together:
 | Name | What it is | You get |
 | --- | --- | --- |
 | **FunkShot** | The game: a retro first-person shooter | `FunkShot-Setup.exe` (Windows), `funkshot_<version>_amd64.deb` (Linux) |
-| **SORTED** | The engine FunkShot is built on: a small C++20/NASM raycasting engine | `SORTED-SDK-Setup.exe` (Windows), `sorted-sdk_<version>_amd64.deb` (Linux) |
+| **SORTED** | The engine FunkShot is built on: a small C++20/NASM raycasting engine. Installs **SORTED Viewer**, a program you open and play with, plus the files to build your own game | `SORTED-Setup.exe` (Windows), `sorted_<version>_amd64.deb` (Linux) |
 
 Play FunkShot if you want the game. Use SORTED if you want to make your own game: see [docs/USING_SORTED.md](docs/USING_SORTED.md).
-(Code layout: `engine/`, `include/engine/` and `asm/` are SORTED; `game/` and `assets/` are FunkShot. The repository is still
+(Code layout: `engine/`, `include/engine/`, `asm/` and `viewer/` are SORTED; `game/` and `assets/` are FunkShot. The repository is still
 named Game-Engine on GitHub.)
 
 **Status: a playable first-person game.** See [CHANGELOG.md](CHANGELOG.md) for what the release contains and
@@ -30,24 +30,36 @@ package was verified on Ubuntu 24.04 only. The game finds its levels in `/usr/sh
 
 Check a download: `sha256sum -c SHA256SUMS.txt --ignore-missing` (Linux) or `certutil -hashfile FunkShot-Setup.exe SHA256` (Windows).
 
-## Use SORTED to make your own game
+## Install SORTED, the engine
 
-Install the SDK like any other program (from the Releases page):
+Download `SORTED-Setup.exe` (Windows 10/11 x64) or `sorted_<version>_amd64.deb` (Linux) from the Releases page and install it
+the same way as FunkShot (`sudo apt install ./sorted_<version>_amd64.deb` on Linux).
 
-| System | Install |
+**Open SORTED Viewer** (Start Menu -> SORTED Viewer, your applications menu on Linux, or `sorted-viewer` in a terminal). It
+shows a textured level you can walk around:
+
+| Key | Action |
 | --- | --- |
-| Windows 10/11 x64 (MSVC) | Run `SORTED-SDK-Setup.exe`. Per user by default; it sets `SORTED_ROOT` so CMake finds it. Choose "all users" to install into Program Files instead. |
-| Linux x86-64 | `sudo apt install ./sorted-sdk_<version>_amd64.deb` (installs under `/usr`) |
+| W A S D / arrow keys, mouse | move, turn, look |
+| click or Space | shoot an orb (blue and red targets flash when hit; orbs stick to walls) |
+| E | next level |
+| R | textures on/off |
+| F3 | statistics: frame rate, position, which fog routine runs (NASM AVX2/SSE2 or C++) |
+| Esc, then Q | pause and help, then quit |
 
-Then, in your CMake project, with no extra paths:
+Options: `sorted-viewer --level maze`, `--list-levels`, `--help`. Everything the Viewer does uses only the engine, no FunkShot code.
+
+## Make your own game with SORTED
+
+The same installer includes everything needed to build on the engine: headers, the compiled engine, SDL3 and a CMake package
+(an all-users install, or the `.deb`, needs no extra setup; a per-user Windows install sets `SORTED_ROOT` for you):
 
 ```cmake
 find_package(SORTED CONFIG REQUIRED)
 target_link_libraries(mygame PRIVATE sorted::engine)
 ```
 
-Headers, the compiled engine and SDL3 are all part of the SDK. A complete first program is in `examples/hello-sorted/`
-(also installed with the SDK). Full guide: [docs/USING_SORTED.md](docs/USING_SORTED.md).
+A complete first program is installed as `share/sorted/examples/hello-sorted/`. Full guide: [docs/USING_SORTED.md](docs/USING_SORTED.md).
 
 ## What works
 
@@ -135,7 +147,7 @@ writes the demo's sound track (16-bit stereo, 44.1 kHz), so you can hear what th
 
 One workflow, `.github/workflows/ci.yml`, builds and tests Linux and Windows in parallel on every push and pull request to
 `main`. Pushing a tag `vX.Y.Z` publishes a GitHub Release containing only `FunkShot-Setup.exe`,
-`funkshot_X.Y.Z_amd64.deb`, `SORTED-SDK-Setup.exe`, `sorted-sdk_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, and only if both builds passed.
+`funkshot_X.Y.Z_amd64.deb`, `SORTED-Setup.exe`, `sorted_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, and only if both builds passed.
 
 To make a release, commit your work to `main`, add a `## [X.Y.Z] - Unreleased` section to `CHANGELOG.md`, then run:
 
@@ -153,8 +165,8 @@ changelog rules and recovery from a failed release: [docs/CI_CD.md](docs/CI_CD.m
 
 - FunkShot: `funkshot_<version>_amd64.deb` on Linux (needs `dpkg-dev`) or `FunkShot-Setup.exe` on Windows (needs
   [Inno Setup 6](https://jrsoftware.org/isinfo.php), `choco install innosetup`).
-- SORTED SDK: `sorted-sdk_<version>_amd64.deb` on Linux or `SORTED-SDK-Setup.exe` on Windows.
-  After installing it, `bash tools/sdk-smoke-test.sh` builds the example that ships inside the SDK against it.
+- SORTED (Viewer + developer files): `sorted_<version>_amd64.deb` on Linux or `SORTED-Setup.exe` on Windows.
+  After installing it, `bash tools/sdk-smoke-test.sh` builds the example that ships with it against it.
 
 With `--sdl fetch` SDL3 is linked in statically. The packages depend on the C library of the machine they were built on, so
 build on the oldest distribution you want to support.
@@ -213,12 +225,14 @@ Tests need no display. Benchmarks are separate from correctness: `./build/tools/
 
 ```text
 engine/ + include/engine/   core, renderer, world, physics, platform, optimized (C++ fallback + NASM dispatch)
-game/                       game library (player, application, demo tour) and the demo executable
+viewer/                     SORTED Viewer: the engine's own interactive program (engine API only)
+game/                       FunkShot: game library (player, application, demo tour) and the executable
 asm/x86_64/                 NASM sources (common + linux: System V, windows: Windows x64)
 tests/                      unit, platform, assembly, integration (+ tiny test harness in tests/support)
 tools/benchmark-runner/     ge-bench
 cmake/  docs/  assets/      build modules, documentation, levels and settings
-packaging/windows/          Inno Setup script for FunkShot-Setup.exe
+packaging/                  Inno Setup scripts (FunkShot-Setup.exe, SORTED-Setup.exe) and Linux menu entries
+examples/hello-sorted/      smallest program built on the installed engine
 tools/                      benchmark runner, changelog.py (changelog sync + validation) and its tests
 release.sh                  one-command release
 ```

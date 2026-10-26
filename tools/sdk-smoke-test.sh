@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Proves an installed SORTED SDK works: builds the example that ships inside it with find_package(SORTED) in a
+# Proves the developer side of an installed SORTED works: builds the example that ships inside it with find_package(SORTED) in a
 # temporary directory and runs it.
 #
-#   tools/sdk-smoke-test.sh            SDK installed system-wide (sorted-sdk .deb under /usr): no hints are given,
-#                                      or, if SORTED_ROOT is set (what SORTED-SDK-Setup.exe sets), only that
-#   tools/sdk-smoke-test.sh <prefix>   SDK installed in <prefix>: passed as CMAKE_PREFIX_PATH
+#   tools/sdk-smoke-test.sh            SORTED installed system-wide (sorted .deb under /usr): no hints are given,
+#                                      or, if SORTED_ROOT is set (what SORTED-Setup.exe sets), only that
+#   tools/sdk-smoke-test.sh <prefix>   SORTED installed in <prefix>: passed as CMAKE_PREFIX_PATH
 set -euo pipefail
 native() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else echo "$1"; fi; }
 
@@ -18,7 +18,7 @@ else
 fi
 command -v cygpath >/dev/null 2>&1 && prefix="$(cygpath -u "$prefix")"   # Git Bash: accept C:\... paths
 example="$prefix/share/sorted/examples/hello-sorted"
-[ -f "$example/main.cpp" ] || { echo "error: no SORTED SDK found at $prefix (missing $example)" >&2; exit 1; }
+[ -f "$example/main.cpp" ] || { echo "error: no SORTED installation found at $prefix (missing $example)" >&2; exit 1; }
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 extra=()

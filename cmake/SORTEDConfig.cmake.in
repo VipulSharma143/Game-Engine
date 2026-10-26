@@ -1,4 +1,4 @@
-# SORTED SDK package: defines the imported target sorted::engine. Use:
+# SORTED package: defines the imported target sorted::engine. Use:
 #   find_package(SORTED CONFIG REQUIRED)   # found automatically after installing the SDK system-wide; otherwise
 #                                          # set SORTED_ROOT (the installer can do it) or CMAKE_PREFIX_PATH to the SDK folder
 #   target_link_libraries(mygame PRIVATE sorted::engine)

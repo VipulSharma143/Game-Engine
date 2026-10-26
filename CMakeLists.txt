@@ -105,6 +105,19 @@ if(WIN32 AND GE_SDL_ENABLED)
                      COMMAND_EXPAND_LISTS)
 endif()
 
+# ---- SORTED Viewer: the engine's own program (installed by SORTED-Setup.exe / the sorted .deb) -------------
+# Uses only the public engine API; no code from game/.
+add_executable(sorted-viewer viewer/main.cpp)
+target_link_libraries(sorted-viewer PRIVATE ge_engine)
+ge_enable_warnings(sorted-viewer)
+ge_enable_sanitizers(sorted-viewer)
+if(WIN32 AND GE_SDL_ENABLED)
+  add_custom_command(TARGET sorted-viewer POST_BUILD
+                     COMMAND ${CMAKE_COMMAND} -E $<IF:$<BOOL:$<TARGET_RUNTIME_DLLS:sorted-viewer>>,copy,true>
+                             $<TARGET_RUNTIME_DLLS:sorted-viewer> $<TARGET_FILE_DIR:sorted-viewer>
+                     COMMAND_EXPAND_LISTS)
+endif()
+
 # ---- tests, tools, install ----------------------------------------------------
 if(GE_BUILD_TESTS)
   enable_testing()
@@ -114,6 +127,6 @@ if(GE_BUILD_TOOLS)
   add_subdirectory(tools/benchmark-runner)
 endif()
 include(Packaging)
-include(Sdk)
+include(Sorted)
 
 message(STATUS "SORTED ${PROJECT_VERSION}: platform=${GE_PLATFORM_NAME} build=${CMAKE_BUILD_TYPE}${CMAKE_CONFIGURATION_TYPES} assembly=${GE_ASM_STATUS} sdl=${GE_SDL_STATUS}")

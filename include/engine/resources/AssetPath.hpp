@@ -12,7 +12,7 @@ namespace ge {
 bool looks_like_assets_dir(const std::filesystem::path& dir);
 
 // Candidate directories in priority order: $GE_ASSETS, ./assets, <exe>/assets, <exe>/../assets,
-// <exe>/../share/funkshot/assets (an unpacked release package), <exe>/../../assets,
+// <exe>/../share/<exe name>/assets (an installed or unpacked package: funkshot, sorted-viewer), <exe>/../../assets,
 // <exe>/../../../assets (covers build/<config>/).
 std::vector<std::filesystem::path> asset_dir_candidates(const std::filesystem::path& executable);
 

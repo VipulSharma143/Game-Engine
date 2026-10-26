@@ -1,7 +1,7 @@
 # The only workflow. Linux and Windows build, test and package in parallel; every build step is a call to
 # ./build.sh, so CI runs the same commands as a developer machine. Two products come out of it:
 #   FunkShot (the game)  - funkshot_<version>_amd64.deb and FunkShot-Setup.exe
-#   SORTED   (the engine) - sorted-sdk_<version>_amd64.deb and SORTED-SDK-Setup.exe
+#   SORTED   (the engine, with the SORTED Viewer program and the developer files) - sorted_<version>_amd64.deb and SORTED-Setup.exe
 #
 #   push / pull request to main : build + test + package both platforms, keep the packages 7 days as artifacts
 #   tag vX.Y.Z                  : the same, then ONE GitHub Release with those four packages and
@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   linux:
-    name: Linux x86-64 (FunkShot .deb, SORTED SDK .deb)
+    name: Linux x86-64 (FunkShot .deb, SORTED .deb)
     # ./release.sh pushes the release commit and its tag together; the tag run builds it, so skip the duplicate.
     if: "github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'chore(release): v')"
     runs-on: ubuntu-24.04
@@ -65,15 +65,20 @@ jobs:
       - name: Install both packages; run FunkShot from outside the repository
         run: |
           set -eu
-          sudo apt-get install -y ./build/release/funkshot_*_amd64.deb ./build/release/sorted-sdk_*_amd64.deb
+          sudo apt-get install -y ./build/release/funkshot_*_amd64.deb ./build/release/sorted_*_amd64.deb
           cd /
           levels=$(env -i PATH=/usr/bin:/bin funkshot --list-levels)
           echo "$levels"
           echo "$levels" | grep -qx bunker
           run=$(env -i PATH=/usr/bin:/bin funkshot --headless --level bunker)
           echo "$run" | grep -q "level: Bunker"
+          viewer=$(env -i PATH=/usr/bin:/bin sorted-viewer --list-levels)     # SORTED Viewer finds its own levels
+          echo "$viewer" | grep -qx bunker
+          env -i PATH=/usr/bin:/bin sorted-viewer --headless --frames 60 | grep -q "SORTED Viewer: 60 frames"
+          test -f /usr/share/applications/sorted-viewer.desktop
+          test -f /usr/share/applications/funkshot.desktop
 
-      - name: Build a program against the installed SORTED SDK (find_package without hints)
+      - name: Build a program against the installed SORTED (find_package without hints)
         run: bash tools/sdk-smoke-test.sh
 
       - uses: actions/upload-artifact@v4
@@ -81,12 +86,12 @@ jobs:
           name: linux-packages
           path: |
             build/release/funkshot_*_amd64.deb
-            build/release/sorted-sdk_*_amd64.deb
+            build/release/sorted_*_amd64.deb
           if-no-files-found: error
           retention-days: 7
 
   windows:
-    name: Windows x64 (FunkShot Setup.exe, SORTED SDK Setup.exe)
+    name: Windows x64 (FunkShot Setup.exe, SORTED Setup.exe)
     if: "github.ref_type == 'tag' || !startsWith(github.event.head_commit.message, 'chore(release): v')"
     runs-on: windows-latest
     timeout-minutes: 45
@@ -151,15 +156,25 @@ jobs:
           for ($i = 0; $i -lt 60 -and (Test-Path $exe); $i++) { Start-Sleep -Milliseconds 500 }   # the uninstaller finishes in a copy of itself
           if (Test-Path $exe) { throw "uninstall left funkshot.exe behind" }
 
-      - name: Install SORTED-SDK-Setup.exe, build a program against it, uninstall
+      - name: Install SORTED-Setup.exe, run the Viewer, build a program against it, uninstall
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $setup = (Resolve-Path build/release/SORTED-SDK-Setup.exe).Path
+          $setup = (Resolve-Path build/release/SORTED-Setup.exe).Path
           $dir = Join-Path $env:RUNNER_TEMP 'SORTED'
-          $log = Join-Path $env:RUNNER_TEMP 'sdk-setup.log'
+          $log = Join-Path $env:RUNNER_TEMP 'sorted-setup.log'
           $p = Start-Process $setup -Wait -PassThru -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$dir", "/LOG=$log"
-          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40; throw "SDK installer exited with $($p.ExitCode)" }
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 40; throw "SORTED installer exited with $($p.ExitCode)" }
+          $viewer = Join-Path $dir 'bin\sorted-viewer.exe'
+          if (-not (Test-Path $viewer)) { throw "sorted-viewer.exe was not installed" }
+          $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\SORTED Viewer.lnk'
+          if (-not (Test-Path $shortcut)) { throw "Start Menu shortcut for SORTED Viewer is missing" }
+          Push-Location $env:TEMP    # not the install or source directory
+          $levels = & $viewer --list-levels
+          if ($levels -notcontains 'bunker') { throw "installed SORTED Viewer cannot find its levels" }
+          $run = & $viewer --headless --frames 60
+          if (-not ($run -match 'SORTED Viewer: 60 frames')) { throw "installed SORTED Viewer did not run" }
+          Pop-Location
           if (-not (Test-Path (Join-Path $dir 'lib\cmake\SORTED\SORTEDConfig.cmake'))) { throw "SORTED package was not installed" }
           # the installer's "set SORTED_ROOT" task must have written the per-user variable
           $root = [Environment]::GetEnvironmentVariable('SORTED_ROOT', 'User')
@@ -170,7 +185,7 @@ jobs:
           $unins = Join-Path $dir 'unins000.exe'
           Start-Process $unins -Wait -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART'
           for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $dir 'lib')); $i++) { Start-Sleep -Milliseconds 500 }
-          if (Test-Path (Join-Path $dir 'lib')) { throw "SDK uninstall left files behind" }
+          if (Test-Path (Join-Path $dir 'lib')) { throw "SORTED uninstall left files behind" }
           if ([Environment]::GetEnvironmentVariable('SORTED_ROOT', 'User')) { throw "uninstall left SORTED_ROOT set" }
 
       - uses: actions/upload-artifact@v4
@@ -178,7 +193,7 @@ jobs:
           name: windows-packages
           path: |
             build/release/FunkShot-Setup.exe
-            build/release/SORTED-SDK-Setup.exe
+            build/release/SORTED-Setup.exe
           if-no-files-found: error
           retention-days: 7
 
@@ -217,7 +232,7 @@ jobs:
           version="${TAG#v}"
           cd dist
           ls -l
-          files="FunkShot-Setup.exe funkshot_${version}_amd64.deb SORTED-SDK-Setup.exe sorted-sdk_${version}_amd64.deb"
+          files="FunkShot-Setup.exe funkshot_${version}_amd64.deb SORTED-Setup.exe sorted_${version}_amd64.deb"
           for f in $files; do test -f "$f"; done
           test "$(ls | wc -l)" = 4    # exactly these four, nothing else
           sha256sum $files > SHA256SUMS.txt

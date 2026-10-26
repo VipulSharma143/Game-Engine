@@ -5,9 +5,9 @@ developer machine.
 
 | Job | Runs on | What it does |
 | --- | --- | --- |
-| `linux` | ubuntu-24.04 | changelog checks; `./build.sh --release --sdl fetch --werror --package` (build, 17 tests, FunkShot `.deb`, `sorted-sdk` `.deb`); installs both packages, runs FunkShot from `/` with an empty environment, and builds the SDK example against the installed SDK with no CMake hints (`tools/sdk-smoke-test.sh`) |
-| `windows` | windows-latest | MSVC x64 + NASM + Inno Setup: `./build.sh --release --sdl fetch --package` (build, tests, `FunkShot-Setup.exe`, `SORTED-SDK-Setup.exe`); silently installs the game, checks the Start Menu shortcut, runs it, uninstalls; installs the SDK, checks `SORTED_ROOT`, builds the example against it, uninstalls and checks everything is removed |
-| `release` | ubuntu-24.04 | Tags only, and only after both jobs passed: checks the tag is on `main`, matches `CMakeLists.txt` and has a dated changelog entry, that no release for it exists, then publishes **one** release with exactly `FunkShot-Setup.exe`, `funkshot_X.Y.Z_amd64.deb`, `SORTED-SDK-Setup.exe`, `sorted-sdk_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, using the changelog entry as notes |
+| `linux` | ubuntu-24.04 | changelog checks; `./build.sh --release --sdl fetch --werror --package` (build, 17 tests, FunkShot `.deb`, `sorted` `.deb`); installs both packages, runs FunkShot and SORTED Viewer from `/` with an empty environment, checks the menu entries, and builds the example against the installed engine with no CMake hints (`tools/sdk-smoke-test.sh`) |
+| `windows` | windows-latest | MSVC x64 + NASM + Inno Setup: `./build.sh --release --sdl fetch --package` (build, tests, `FunkShot-Setup.exe`, `SORTED-Setup.exe`); silently installs the game, checks the Start Menu shortcut, runs it, uninstalls; installs SORTED, checks the Viewer, its shortcut and `SORTED_ROOT`, builds the example against it, uninstalls and checks everything is removed |
+| `release` | ubuntu-24.04 | Tags only, and only after both jobs passed: checks the tag is on `main`, matches `CMakeLists.txt` and has a dated changelog entry, that no release for it exists, then publishes **one** release with exactly `FunkShot-Setup.exe`, `funkshot_X.Y.Z_amd64.deb`, `SORTED-Setup.exe`, `sorted_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, using the changelog entry as notes |
 
 Triggers: pushes and pull requests to `main`, and tags `vX.Y.Z`. Newer pushes cancel older runs of the same ref; release
 runs are never cancelled. The release commit made by `release.sh` is skipped on the branch run because the tag run builds it.
@@ -65,5 +65,5 @@ expect the first run to need small fixes; send the failing step's log.
 To build the installer by hand: x64 Native Tools prompt, NASM, Ninja and Inno Setup 6 installed, then
 `bash build.sh --release --sdl fetch --package` from Git Bash.
 
-`SORTED-SDK-Setup.exe` installs per user by default and sets the user variable `SORTED_ROOT` (CMake's `find_package` reads it); an all-users install goes to Program Files, which CMake searches by itself. The SDK is built with the static MSVC runtime, which the example and `docs/USING_SORTED.md` tell users to match.
+`SORTED-Setup.exe` installs per user by default and sets the user variable `SORTED_ROOT` (CMake's `find_package` reads it); an all-users install goes to Program Files, which CMake searches by itself. The SDK is built with the static MSVC runtime, which the example and `docs/USING_SORTED.md` tell users to match.
 Its Windows system-library list (`cmake/SORTEDConfig.cmake.in`) is checked only by the CI smoke test.

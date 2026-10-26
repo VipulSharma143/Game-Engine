@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=SORTED Viewer
+Comment=Walk around a level, shoot test orbs and inspect the SORTED engine
+Exec=sorted-viewer
+Terminal=false
+Categories=Development;Game;

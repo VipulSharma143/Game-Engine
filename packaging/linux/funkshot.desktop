@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=FunkShot
+Comment=Retro first-person shooter built on the SORTED engine
+Exec=funkshot
+Terminal=false
+Categories=Game;ActionGame;

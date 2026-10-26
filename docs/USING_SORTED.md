@@ -1,22 +1,31 @@
 # Using SORTED
 
 **SORTED** is the engine: a small C++20 raycasting engine with NASM x86-64 routines (each with a portable C++ fallback),
-an SDL3 window/input/audio platform and a headless platform for tests. **FunkShot** is the game that is built on it and
-lives in `game/`. You can use SORTED to make your own game without touching FunkShot.
+an SDL3 window/input/audio platform and a headless platform for tests. **FunkShot** is the game built on it (`game/`).
+You can use SORTED to make your own game without touching FunkShot.
 
 ## Install SORTED
 
-Download the SDK installer for your system from the [Releases page](https://github.com/VipulSharma143/Game-Engine/releases):
+Download the installer for your system from the [Releases page](https://github.com/VipulSharma143/Game-Engine/releases):
 
 | System | File | Install |
 | --- | --- | --- |
-| Windows x64 (MSVC) | `SORTED-SDK-Setup.exe` | Run it. It installs for the current user (no admin prompt) and sets the user variable `SORTED_ROOT`, which CMake reads; or pick "all users" to install into `C:\Program Files\SORTED`, where CMake finds it by itself. Uninstall from Settings -> Apps. |
-| Linux x86-64 (GCC/Clang, glibc 2.38+) | `sorted-sdk_<version>_amd64.deb` | `sudo apt install ./sorted-sdk_<version>_amd64.deb` (installs under `/usr`; remove with `sudo apt remove sorted-sdk`) |
+| Windows x64 (MSVC) | `SORTED-Setup.exe` | Run it. It installs for the current user (no admin prompt) and, for developers, sets the user variable `SORTED_ROOT`, which CMake reads; or pick "all users" to install into `C:\Program Files\SORTED`, where CMake finds it by itself. Uninstall from Settings -> Apps. |
+| Linux x86-64 (GCC/Clang, glibc 2.38+) | `sorted_<version>_amd64.deb` | `sudo apt install ./sorted_<version>_amd64.deb` (installs under `/usr`; remove with `sudo apt remove sorted`) |
 
-You get `include/sorted/` (headers), the compiled engine (`libsorted.a` or `sorted.lib`) with the static SDL3 it was built
-with, a CMake package, this guide and a ready-to-build example (`share/sorted/examples/hello-sorted/`). You need CMake
-3.21+, Ninja (or another generator) and a C++20 compiler. You do not need NASM, Git or SDL3. On Windows, open a new
-terminal after installing so that `SORTED_ROOT` is visible.
+## Try it: SORTED Viewer
+
+The installer includes **SORTED Viewer**, a program built only on the engine: open it from the Start Menu (Windows) or your
+applications menu / `sorted-viewer` (Linux). Walk around with WASD and the mouse, shoot orbs with click or Space, `E` for the
+next level, `R` to turn textures off and on, `F3` for statistics (frame rate, which assembly routines run), `Esc` to pause.
+Its source is `viewer/main.cpp` in the repository, a good second example after the one below.
+
+## Build your own game on SORTED
+
+The installer also places `include/sorted/` (headers), the compiled engine (`libsorted.a` or `sorted.lib`) with the static
+SDL3 it was built with, a CMake package, this guide and a ready-to-build example (`share/sorted/examples/hello-sorted/`).
+You need CMake 3.21+, Ninja (or another generator) and a C++20 compiler. You do not need NASM, Git or SDL3. On Windows, open a
+new terminal after installing so that `SORTED_ROOT` is visible.
 
 ## Your first program
 

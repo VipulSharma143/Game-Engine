@@ -38,8 +38,8 @@ Usage: ./build.sh [options]
       --no-tests         skip CTest
       --package          after a successful build, write both products to the build directory:
                            FunkShot (game):  funkshot_<version>_amd64.deb (Linux) / FunkShot-Setup.exe (Windows)
-                           SORTED (engine):  sorted-sdk_<version>_amd64.deb (Linux) / SORTED-SDK-Setup.exe (Windows)
-                         Windows needs Inno Setup 6; the SDK needs --sdl fetch (it bundles that static SDL3)
+                           SORTED (engine):  sorted_<version>_amd64.deb (Linux) / SORTED-Setup.exe (Windows)
+                         (SORTED Viewer program + developer files). Windows needs Inno Setup 6; SORTED needs --sdl fetch
   -G, --generator NAME   CMake generator (default: Ninja if found, else Unix Makefiles / Ninja on Windows)
   -j, --jobs N           parallel jobs (default: all cores)
       --cxx PATH         C++ compiler to use
@@ -248,7 +248,7 @@ ok "built in $((SECONDS - START))s"
 
 # Verify the expected artifacts exist; never report success without them.
 DEMO="$BUILD_DIR/funkshot$EXE"
-for artifact in "$DEMO" "$BUILD_DIR/libsorted.a"; do
+for artifact in "$DEMO" "$BUILD_DIR/sorted-viewer$EXE" "$BUILD_DIR/libsorted.a"; do
   [ "$OS" = "windows" ] && [ "${artifact##*.}" = "a" ] && continue
   if [ ! -e "$artifact" ]; then
     # MSVC names static libs sorted.lib
@@ -276,9 +276,9 @@ fi
 # ---- package ------------------------------------------------------------------------
 # Two products come out of one build, each as a native installer:
 #   Linux:   one CPack run writes funkshot_<version>_amd64.deb (component "funkshot", the game) and
-#            sorted-sdk_<version>_amd64.deb (component "sdk", the engine) - see cmake/Packaging.cmake
+#            sorted_<version>_amd64.deb (component "sorted", the engine) - see cmake/Packaging.cmake
 #   Windows: "cmake --install --component <c>" stages each product, then Inno Setup compiles
-#            packaging/windows/FunkShot.iss -> FunkShot-Setup.exe and SORTED-SDK.iss -> SORTED-SDK-Setup.exe
+#            packaging/windows/FunkShot.iss -> FunkShot-Setup.exe and SORTED.iss -> SORTED-Setup.exe
 find_iscc() {
   local c
   for c in iscc ISCC; do have "$c" && { command -v "$c"; return 0; }; done
@@ -294,10 +294,10 @@ project_version() { sed -n 's/^CMAKE_PROJECT_VERSION:[A-Z]*=//p' "$BUILD_DIR/CMa
 package_linux() {
   have cpack || { fail "cpack not found (ships with CMake)"; return 1; }
   have dpkg-deb || { fail "dpkg-deb not found (install dpkg-dev)"; return 1; }
-  rm -f "$BUILD_DIR"/funkshot_*.deb "$BUILD_DIR"/sorted-sdk_*.deb   # never let a stale package pass for a new one
+  rm -f "$BUILD_DIR"/funkshot_*.deb "$BUILD_DIR"/sorted_*.deb   # never let a stale package pass for a new one
   ( cd "$BUILD_DIR" && run_logged "logs/package.log" cpack -C "$CONFIG" ) || return 1
   ls "$BUILD_DIR"/funkshot_*_amd64.deb >/dev/null 2>&1 || { fail "cpack produced no funkshot .deb"; return 1; }
-  ls "$BUILD_DIR"/sorted-sdk_*_amd64.deb >/dev/null 2>&1 || { fail "cpack produced no sorted-sdk .deb (configure with --sdl fetch)"; return 1; }
+  ls "$BUILD_DIR"/sorted_*_amd64.deb >/dev/null 2>&1 || { fail "cpack produced no sorted .deb (configure with --sdl fetch)"; return 1; }
 }
 
 # package_windows_one <component> <iss file> <installer file name>
@@ -310,7 +310,7 @@ package_windows_one() {
   stage="$abs_build/stage-$component"
   rm -rf "$stage"; rm -f "$abs_build/$output"
   run_logged "$LOG_DIR/package-$component.log" cmake --install "$BUILD_DIR" --config "$CONFIG" --component "$component" --prefix "$stage" || return 1
-  [ -n "$(ls -A "$stage" 2>/dev/null)" ] || { fail "nothing was installed for component '$component' (the SDK needs --sdl fetch)"; return 1; }
+  [ -n "$(ls -A "$stage" 2>/dev/null)" ] || { fail "nothing was installed for component '$component' (SORTED needs --sdl fetch)"; return 1; }
   # MSYS rewrites arguments that start with "/" (ISCC's option style) into paths; switch that off for this call.
   MSYS2_ARG_CONV_EXCL='*' run_logged "$LOG_DIR/package-$component-iscc.log" "$iscc" /Q "/DAppVersion=$version" \
     "/DStageDir=$(cygpath -w "$stage")" "/O$(cygpath -w "$abs_build")" "$(cygpath -w "$ROOT/packaging/windows/$iss")" || return 1
@@ -318,7 +318,7 @@ package_windows_one() {
 }
 
 package_windows() {
-  package_windows_one funkshot FunkShot.iss FunkShot-Setup.exe && package_windows_one sdk SORTED-SDK.iss SORTED-SDK-Setup.exe
+  package_windows_one funkshot FunkShot.iss FunkShot-Setup.exe && package_windows_one sorted SORTED.iss SORTED-Setup.exe
 }
 
 if [ "$PACKAGE" = 1 ]; then
@@ -334,7 +334,7 @@ if [ "$PACKAGE" = 1 ]; then
     for l in "$LOG_DIR"/package*.log; do [ -f "$l" ] && tail -n 15 "$l" | sed 's/^/    /' >&2; done
     exit 5
   fi
-  ok "package(s) written to $BUILD_DIR: $(cd "$BUILD_DIR" && ls funkshot_*_amd64.deb sorted-sdk_*_amd64.deb FunkShot-Setup.exe SORTED-SDK-Setup.exe 2>/dev/null | tr '\n' ' ')"
+  ok "package(s) written to $BUILD_DIR: $(cd "$BUILD_DIR" && ls funkshot_*_amd64.deb sorted_*_amd64.deb FunkShot-Setup.exe SORTED-Setup.exe 2>/dev/null | tr '\n' ' ')"
 fi
 
 printf '%s==> Build succeeded%s (%s)\n' "$G" "$N" "$CONFIG"

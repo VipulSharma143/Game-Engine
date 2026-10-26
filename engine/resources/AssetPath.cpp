@@ -37,7 +37,7 @@ std::vector<fs::path> asset_dir_candidates(const fs::path& executable) {
     fs::path dir = exe.has_parent_path() ? exe.parent_path() : fs::path(".");
     dir = fs::absolute(dir, ec);
     out.push_back(dir / "assets");
-    out.push_back(dir / ".." / "share" / "funkshot" / "assets");  // installed / unpacked package layout
+    out.push_back(dir / ".." / "share" / exe.stem() / "assets");  // installed / unpacked package layout
     out.push_back(dir / ".." / "assets");
     out.push_back(dir / ".." / ".." / "assets");
     out.push_back(dir / ".." / ".." / ".." / "assets");

@@ -186,6 +186,18 @@ TEST(assets_dir_detection_and_env_override) {
 #endif
 }
 
+// An installed program looks for its data in share/<its own name>/assets, so FunkShot and SORTED Viewer each find theirs.
+TEST(asset_search_uses_the_executable_name_for_the_installed_layout) {
+    const auto contains = [](const std::vector<fs::path>& list, const fs::path& wanted) {
+        for (const fs::path& c : list)
+            if (c.lexically_normal() == wanted.lexically_normal()) return true;
+        return false;
+    };
+    CHECK(contains(ge::asset_dir_candidates("/opt/x/bin/sorted-viewer"), "/opt/x/share/sorted-viewer/assets"));
+    CHECK(contains(ge::asset_dir_candidates("/opt/x/bin/funkshot"), "/opt/x/share/funkshot/assets"));
+    CHECK(!contains(ge::asset_dir_candidates("/opt/x/bin/funkshot"), "/opt/x/share/sorted-viewer/assets"));
+}
+
 #if defined(__linux__)
 // Started through PATH (an installed package), argv[0] has no directory; the search must still start from the
 // real location of the executable, not from the current directory.
