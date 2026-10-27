@@ -264,7 +264,8 @@ if [ "$RUN_TESTS" = 1 ]; then
   step "Test"
   if ! run_logged "$LOG_DIR/test.log" ctest --test-dir "$BUILD_DIR" --output-on-failure -C "$CONFIG"; then
     fail "tests failed (stage: test)"
-    grep -E 'Failed|\*\*\*|tests passed' "$LOG_DIR/test.log" | sed 's/^/    /' >&2
+    # show which check failed (the test framework prints "FAIL file:line: CHECK(...)"), not just the test's name
+    grep -E 'FAIL|Failed|\*\*\*|tests passed' "$LOG_DIR/test.log" | sed 's/^/    /' >&2
     echo "  full log: $LOG_DIR/test.log" >&2
     exit 4
   fi
