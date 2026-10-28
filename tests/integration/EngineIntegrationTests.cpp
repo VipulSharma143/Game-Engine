@@ -56,7 +56,42 @@ public:
     int updates = 0, renders = 0, shutdowns = 0, quit_after = 1000000;
 };
 
+// Reports one `use` press on the very first poll and nothing afterwards.
+class OnePressPlatform final : public ge::IPlatform {
+public:
+    ge::Status init(const ge::EngineConfig&) override { return ge::Status::success(); }
+    void shutdown() noexcept override {}
+    void poll_input(ge::InputState& input) override { input.use = !pressed_; pressed_ = true; }
+    void present(const ge::Framebuffer&, std::uint64_t) override {}
+    void finalize(const ge::Framebuffer&) override {}
+private:
+    bool pressed_ = false;
+};
+
+class PressCountingApp final : public ge::Application {
+public:
+    ge::Status initialize(const ge::EngineConfig&) override { return ge::Status::success(); }
+    void fixed_update(const ge::InputState& in, double) override { ++updates; if (in.use) ++presses; }
+    void render(ge::Framebuffer&) override {}
+    void shutdown() noexcept override {}
+    bool wants_quit() const noexcept override { return updates >= 3; }
+    int updates = 0, presses = 0;
+};
+
 }  // namespace
+
+// The first frame of a real-time run is almost always shorter than one fixed step, so it runs no step. A press
+// that arrives on such a frame must be delivered on the next step (exactly once), not lost.
+TEST(engine_delivers_a_press_that_arrives_on_a_frame_without_a_fixed_step) {
+    ge::EngineConfig c = small_config(0);
+    c.deterministic = false;
+    c.fixed_timestep = 0.02;
+    ge::Engine engine(c, std::make_unique<OnePressPlatform>());
+    CHECK(engine.initialize().ok);
+    PressCountingApp app;
+    CHECK_EQ(engine.run(app), 0);
+    CHECK_EQ(app.presses, 1);
+}
 
 TEST(engine_initializes_and_shuts_down_cleanly) {
     ge::Engine engine(small_config(1), std::make_unique<ge::HeadlessPlatform>());

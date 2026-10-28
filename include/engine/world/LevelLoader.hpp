@@ -29,4 +29,11 @@ constexpr int kMaxLevelSize = 128;
 std::optional<Level> parse_level_text(std::string_view text, std::string& error);
 std::optional<Level> load_level_file(const std::filesystem::path& path, std::string& error);
 
+// The inverse of parse_level_text: parsing the result gives back an identical level. Fails (with a message) for a
+// level the format cannot hold: border not solid, no or several player spawns, two objects in one cell, an object
+// away from its cell centre, a wall id above 11, a size outside 3..128. Comments, name, angle and waves are kept.
+std::optional<std::string> serialize_level_text(const Level& level, std::string& error);
+// Serializes, writes to "<path>.tmp" and renames it over `path`, so a failed save never leaves a half-written level.
+bool save_level_file(const std::filesystem::path& path, const Level& level, std::string& error);
+
 }  // namespace ge

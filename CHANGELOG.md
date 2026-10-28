@@ -4,6 +4,21 @@ All notable changes to FunkShot (the game) and SORTED (the engine it is built on
 two newest releases are kept in this file; older releases are in [ARCHIVE_CHANGELOG.md](ARCHIVE_CHANGELOG.md).
 `tools/changelog.py` keeps both files in sync, and `./release.sh` fills in the release date. See [AGENTS.md](AGENTS.md) for the rules.
 
+## [0.5.0] - Unreleased
+
+### Features
+
+- Edit levels inside SORTED Viewer. Press `F2` for edit mode: left click selects what the crosshair points at (walls, doors, targets, enemies, pickups, the player start), right click inserts the item chosen with the mouse wheel or `]`/`[`, `X`/`Delete` removes, `M` moves, `C` changes it into the chosen item, `.`/`,` rotates the player start, `F5` saves the level file and `F9` reloads it. Changes show at once in the 3D view and on a minimap. There is no scaling (levels store no sizes) and no undo; `F9` goes back to the last save.
+- New engine pieces behind it: `ge::LevelEditor`, `ge::crosshair_target`, `ge::Renderer::set_highlight_cell`, and `serialize_level_text` / `save_level_file`, the exact inverse of loading a level (saves are atomic and refuse levels that would not load again).
+
+### Improvements
+
+- Levels keep their `;` description lines when loaded and saved.
+
+### Bug Fixes
+
+- A key press or mouse click that arrived on a frame in which the engine ran no fixed update (common on the first frame and with fast displays) was silently dropped. It is now delivered on the next update, once.
+
 ## [0.4.0] - 2026-10-27
 
 ### Features

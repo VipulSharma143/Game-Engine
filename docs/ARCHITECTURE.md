@@ -14,7 +14,7 @@ Catch-up is bounded (`max_catchup_steps`, default 5): excess time is dropped, so
 | --- | --- |
 | core | `EngineConfig`, `Logger`, `FrameTimer`, `FixedStepper`, `Engine`, `Application`, `Status`, `Math` |
 | renderer | `Framebuffer`, `Camera`, `cast_ray`, `Renderer` |
-| world | `GridMap`, `Level`, `parse_level`, `test_level()` |
+| world | `GridMap`, `Level`, `parse_level`, `serialize_level_text`/`save_level_file`, `LevelEditor` (edit, select, save), `test_level()` |
 | physics | `collides_aabb`, `move_with_collision` |
 | platform | `IPlatform`, `InputState`, `HeadlessPlatform`, `ScriptedInput`, PPM/ASCII dump |
 | optimized | `scalar::` reference code, `opt::` dispatch to NASM |

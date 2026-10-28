@@ -41,6 +41,7 @@ int Engine::run(Application& app) {
     FixedStepper stepper(config_.fixed_timestep, config_.max_catchup_steps);
     double previous = monotonic_seconds();
     InputState input;
+    InputState carried;  // presses from a frame that ran no fixed step, delivered on the next one
 
     for (;;) {
         double raw = config_.fixed_timestep;
@@ -53,16 +54,17 @@ int Engine::run(Application& app) {
 
         input = InputState{};
         platform_->poll_input(input);
+        input.add_edges(carried);
+        carried = InputState{};
         if (input.quit || app.wants_quit()) break;
 
         const int steps = stepper.consume(dt);
         for (int i = 0; i < steps; ++i) {
             app.fixed_update(input, stepper.step());
             // Edge-triggered and delta inputs must not repeat on catch-up steps.
-            input.look = 0.0;
-            input.use = input.reload = input.toggle_debug = false;
-            input.pause = input.confirm = input.menu_quit = false;
+            input.clear_edges();
         }
+        if (steps == 0) carried.add_edges(input);  // no step saw them yet; do not lose them
         stats_.fixed_steps += static_cast<std::uint64_t>(steps);
 
         app.render(framebuffer_);

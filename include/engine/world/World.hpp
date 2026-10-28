@@ -50,6 +50,7 @@ struct Level {
     std::vector<Vec2> enemy_spawns;   // 'E' cells; wave N spawns the first N of them
     std::vector<PickupSpawn> pickups; // 'H' health, 'A' ammo, 'K' key
     int waves_to_win = 3;
+    std::vector<std::string> comments; // the ';' lines before 'map:' (without the ';'), kept so saving does not lose them
 };
 
 // Rows use '#' or '1'-'9' for walls ('#' = id 1), '.' or ' ' for empty space and

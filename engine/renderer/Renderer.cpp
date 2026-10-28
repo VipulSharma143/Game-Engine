@@ -31,6 +31,11 @@ std::uint32_t shade_wall(std::uint8_t id, bool y_side, double distance) noexcept
                     static_cast<unsigned>(base.b * light));
 }
 
+// Pulls a pixel 45% of the way to bright yellow; used for the selected wall.
+constexpr std::uint32_t highlight_pixel(std::uint32_t c) noexcept {
+    return pack_rgb((red_of(c) * 141u + 255u * 115u) >> 8, (green_of(c) * 141u + 220u * 115u) >> 8, (blue_of(c) * 141u + 40u * 115u) >> 8);
+}
+
 }  // namespace
 
 void Renderer::render(const GridMap& map, const Camera& camera, Framebuffer& target) {
@@ -62,7 +67,9 @@ void Renderer::render_flat(const GridMap& map, const Camera& camera, Framebuffer
         const int top = half - static_cast<int>(half_line);
         const int bottom = half + static_cast<int>(half_line);
         target.fill_column(x, 0, top, kCeiling);
-        target.fill_column(x, top, bottom, shade_wall(hit.wall_id, hit.y_side, dist));
+        std::uint32_t color = shade_wall(hit.wall_id, hit.y_side, dist);
+        if (hit.cell_x == highlight_x_ && hit.cell_y == highlight_y_) color = highlight_pixel(color);
+        target.fill_column(x, top, bottom, color);
         target.fill_column(x, bottom, h, kFloor);
     }
 }
@@ -144,6 +151,8 @@ void Renderer::render_textured(const GridMap& map, const Camera& camera, Framebu
         column_.resize(static_cast<std::size_t>(n));
         for (int i = 0; i < n; ++i, tpos += step) column_[static_cast<std::size_t>(i)] = t.at(tx, static_cast<int>(tpos));
         opt::fog_blend(column_.data(), column_.data(), static_cast<std::size_t>(n), static_cast<std::uint32_t>(light), kFogColor);
+        if (hit.cell_x == highlight_x_ && hit.cell_y == highlight_y_)
+            for (int i = 0; i < n; ++i) column_[static_cast<std::size_t>(i)] = highlight_pixel(column_[static_cast<std::size_t>(i)]);
         for (int i = 0; i < n; ++i)
             px[static_cast<std::size_t>(y0 + i) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)] = column_[static_cast<std::size_t>(i)];
     }

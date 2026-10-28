@@ -50,6 +50,7 @@ struct SDLPlatform::Impl {
     SDL_Texture* texture = nullptr;
     bool mouse_captured = false;
     bool sdl_started = false;
+    float wheel_accumulator = 0.0f;  // fractional wheel/touchpad scroll not yet worth a palette step
     std::string ppm_path;
     Uint64 title_ticks = 0;
     std::uint64_t title_frames = 0;
@@ -130,13 +131,39 @@ void SDLPlatform::poll_input(InputState& input) {
                 if (contains(s.pause, sc)) input.pause = true;
                 if (contains(s.confirm, sc)) input.confirm = true;
                 if (contains(s.quit_menu, sc)) input.menu_quit = true;
+                // Editing keys are fixed (not in settings.ini): see InputState and docs/USING_SORTED.md.
+                switch (sc) {
+                    case SDL_SCANCODE_F2: input.edit_toggle = true; break;
+                    case SDL_SCANCODE_DELETE: case SDL_SCANCODE_X: input.edit_remove = true; break;
+                    case SDL_SCANCODE_M: input.edit_move = true; break;
+                    case SDL_SCANCODE_C: input.edit_change = true; break;
+                    case SDL_SCANCODE_BACKSPACE: input.edit_deselect = true; break;
+                    case SDL_SCANCODE_F5: input.edit_save = true; break;
+                    case SDL_SCANCODE_F9: input.edit_load = true; break;
+                    case SDL_SCANCODE_RIGHTBRACKET: ++input.edit_palette; break;
+                    case SDL_SCANCODE_LEFTBRACKET: --input.edit_palette; break;
+                    case SDL_SCANCODE_PERIOD: ++input.edit_rotate; break;
+                    case SDL_SCANCODE_COMMA: --input.edit_rotate; break;
+                    default: break;
+                }
                 if (sc == SDL_SCANCODE_TAB && s.window && s.capture_allowed) {  // free / recapture the mouse
                     s.user_released = !s.user_released;
                     set_mouse_capture(s.wanted_capture);
                 }
                 break;
             }
-            case SDL_EVENT_MOUSE_BUTTON_DOWN: input.confirm = true; break;
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+                input.confirm = true;
+                if (e.button.button == SDL_BUTTON_LEFT) input.edit_select = true;
+                if (e.button.button == SDL_BUTTON_RIGHT) input.edit_insert = true;
+                break;
+            case SDL_EVENT_MOUSE_WHEEL: {
+                s.wheel_accumulator += e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -e.wheel.y : e.wheel.y;
+                const int steps = static_cast<int>(s.wheel_accumulator);  // whole notches only; touchpads send fractions
+                input.edit_palette += steps;
+                s.wheel_accumulator -= static_cast<float>(steps);
+                break;
+            }
             case SDL_EVENT_MOUSE_MOTION: look += static_cast<double>(e.motion.xrel); break;
             default: break;
         }

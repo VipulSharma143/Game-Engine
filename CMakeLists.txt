@@ -63,6 +63,7 @@ add_library(ge_engine STATIC
   engine/renderer/Texture.cpp
   engine/renderer/TextRenderer.cpp
   engine/world/MotionBatch.cpp
+  engine/world/LevelEditor.cpp
   engine/world/LevelLoader.cpp
   engine/world/World.cpp)
 add_library(ge::engine ALIAS ge_engine)

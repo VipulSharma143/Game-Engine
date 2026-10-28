@@ -46,6 +46,29 @@ shows a textured level you can walk around:
 | R | textures on/off |
 | F3 | statistics: frame rate, position, which fog routine runs (NASM AVX2/SSE2 or C++) |
 | Esc, then Q | pause and help, then quit |
+| F2 | **edit mode** on/off (see below) |
+
+**Edit the level you are standing in.** Press `F2`. Aim the crosshair (it turns yellow) and change the real level; the 3D view
+and the minimap update at once. Shooting is off while editing. What you can edit is what the level file holds: walls (ids 1-9),
+doors, locked doors, targets, enemy spawns, health/ammo/key pickups, and the player start.
+
+| Input (edit mode) | Action |
+| --- | --- |
+| left click | select the object or wall under the crosshair (it is tinted or pulses) |
+| Backspace | deselect |
+| mouse wheel, `]` / `[` | choose what to insert (shown as `INSERT:` on screen) |
+| right click | insert the chosen item at the white diamond (up to 3 tiles ahead, or in front of a nearer wall) |
+| X or Delete | remove the selected object (not the player start, not the border wall) |
+| M | move the selected object to the white diamond (the player start can be moved too) |
+| C | change the selected object into the chosen item, in place (for example wall 1 into wall 4, or a health pack into ammo) |
+| `.` / `,` | rotate the selected **player start** by 15 degrees (the only object with a direction) |
+| F5 | save to the level's file (atomic; a refused or failed save keeps the old file) |
+| F9 | reload from the file, discarding unsaved edits (if the file no longer loads, your edits are kept and the error is shown) |
+
+One object per cell; the border stays wall; you cannot wall yourself in. `E` (next level) is refused while there are unsaved edits.
+Scaling is not offered: the level format stores no size for any object. Saving rewrites the level file in the same text format
+(wall id 1 is written as `1`, not `#`; the `;` description lines, name, start angle and wave count are kept). There is no undo:
+`F9` reverts to the last save, and a level under version control can be restored with git.
 
 Options: `sorted-viewer --level maze`, `--list-levels`, `--help`. Everything the Viewer does uses only the engine, no FunkShot code.
 
@@ -65,11 +88,11 @@ A complete first program is installed as `share/sorted/examples/hello-sorted/`. 
 
 - SDL3 window with keyboard/mouse input, menus and pause; textured raycaster with distance fog; enemies, weapon, pickups, doors, waves; four text-file levels; synthesised sound; headless mode with scripted input (PPM, ASCII, WAV output).
 - NASM x86-64 routines for System V and Windows x64 with bit-identical C++ fallbacks (fog kernels SSE2/AVX2). They are at performance parity or a modest speed-up; see [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
-- 17 CTest entries (unit, platform, assembly equivalence, integration), plus a separate benchmark tool.
+- 18 CTest entries (unit, platform, assembly equivalence, integration), plus a separate benchmark tool.
 
 ## Not implemented
 
-JSON levels and prefabs, a level editor, image/audio asset files (textures and sounds are generated in code), multithreading.
+JSON levels and prefabs, a standalone level editor (the Viewer edits in place, see above), image/audio asset files (textures and sounds are generated in code), multithreading.
 The Windows/MSVC build and the installer are exercised by CI only; Clang has not been verified.
 
 ## Root scripts

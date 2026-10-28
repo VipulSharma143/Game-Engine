@@ -5,6 +5,8 @@
 //   WASD / arrows  move and turn      mouse  look            click / Space  shoot an orb
 //   E  next level                     R  textures on/off     F3  statistics
 //   Esc  pause and help               Q  quit (while paused)
+//   F2  edit mode: left click select, right click insert, wheel or [ ] choose what to insert, X/Delete remove,
+//       M move, C change, , . rotate the player start, Backspace deselect, F5 save, F9 reload from the file
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -25,11 +27,13 @@
 #include "engine/platform/HeadlessPlatform.hpp"
 #include "engine/platform/PlatformFactory.hpp"
 #include "engine/platform/ScriptedInput.hpp"
+#include "engine/renderer/Raycaster.hpp"
 #include "engine/renderer/Renderer.hpp"
 #include "engine/renderer/SpriteRenderer.hpp"
 #include "engine/renderer/TextRenderer.hpp"
 #include "engine/resources/AssetPath.hpp"
 #include "engine/resources/ResourceManager.hpp"
+#include "engine/world/LevelEditor.hpp"
 #include "engine/world/LevelLoader.hpp"
 
 namespace {
@@ -42,10 +46,17 @@ constexpr double kOrbCooldown = 0.16;
 constexpr std::size_t kMaxOrbs = 48;
 constexpr double kHitRadius = 0.35;
 constexpr double kHelpSeconds = 6.0;
+constexpr double kEditReach = 3.0;       // tiles: how far ahead an insert or move lands when no wall is nearer
+constexpr double kMessageSeconds = 3.0;  // how long an edit result stays on screen
 
 constexpr std::uint32_t kWhite = 0xFFFFFFFFu;
 constexpr std::uint32_t kYellow = 0xFFFFD84Au;
 constexpr std::uint32_t kGrey = 0xFFB4BCC8u;
+constexpr std::uint32_t kRed = 0xFFFF6B6Bu;
+constexpr std::uint32_t kPlayerMarker = 0xFFE040E0u;
+// Minimap colours by wall id (0 = floor, 10 = door, 11 = locked door).
+constexpr std::uint32_t kMapColors[12] = {0xFF2A2A2Au, 0xFFC83C3Cu, 0xFF3CBE3Cu, 0xFF465ADCu, 0xFFD2BE3Cu, 0xFF3CBEBEu,
+                                          0xFFBE46BEu, 0xFFE6E6E6u, 0xFFE68C32u, 0xFF8C5A32u, 0xFF78501Eu, 0xFFAA2828u};
 
 struct Orb {
     ge::Vec2 position;
@@ -71,10 +82,16 @@ void centered(ge::Framebuffer& fb, int y, const std::string& text, std::uint32_t
     ge::draw_text_shadowed(fb, (fb.width() - ge::text_width(text)) / 2, y, text, color);
 }
 
+void frame_rect(ge::Framebuffer& fb, int x, int y, int w, int h, std::uint32_t color) {
+    fill_rect(fb, x, y, w, 1, color); fill_rect(fb, x, y + h - 1, w, 1, color);
+    fill_rect(fb, x, y, 1, h, color); fill_rect(fb, x + w - 1, y, 1, h, color);
+}
+
 class Viewer final : public ge::Application {
 public:
-    Viewer(std::vector<ge::Level> levels, std::size_t start, bool textured)
-        : levels_(std::move(levels)), start_(start), textured_(textured) {}
+    // `paths[i]` is the file levels[i] was read from (empty for the built-in level): where F5 saves it.
+    Viewer(std::vector<ge::Level> levels, std::vector<std::filesystem::path> paths, std::size_t start, bool textured)
+        : levels_(std::move(levels)), paths_(std::move(paths)), start_(start), textured_(textured) {}
 
     ge::Status initialize(const ge::EngineConfig& config) override {
         config_ = config;
@@ -94,7 +111,15 @@ public:
             return;
         }
         if (in.toggle_debug) debug_ = !debug_;
-        if (in.use) enter_level((index_ + 1) % levels_.size());
+        if (in.edit_toggle) {
+            edit_ = !edit_;
+            if (!edit_) renderer_.clear_highlight();
+        }
+        if (in.use) {
+            if (editor_.dirty()) toast(ge::Status::failure("UNSAVED EDITS: F5 SAVE OR F9 DISCARD"));  // never drop edits silently
+            else enter_level((index_ + 1) % levels_.size());
+        }
+        sync_markers();
         if (in.reload) {
             textured_ = !textured_;
             renderer_.set_textures(textured_ ? &textures_ : nullptr);
@@ -107,8 +132,10 @@ public:
         if (length > 1.0) wish = wish * (1.0 / length);
         position_ = ge::move_with_collision(level().map, position_, wish * (kWalkSpeed * dt), kBodyRadius);
 
+        message_time_ = std::max(0.0, message_time_ - dt);
         cooldown_ -= dt;
-        if (in.fire && cooldown_ <= 0.0) {
+        if (edit_) edit_step(in);
+        if (!edit_ && in.fire && cooldown_ <= 0.0) {
             cooldown_ = kOrbCooldown;
             orbs_.push_back({position_ + forward * 0.3, forward * kOrbSpeed, false});
             if (orbs_.size() > kMaxOrbs) orbs_.pop_front();
@@ -123,24 +150,41 @@ public:
         last_frame_ = now;
         if (frame_seconds > 0.0) fps_ += (1.0 / frame_seconds - fps_) * 0.1;  // smoothed
 
+        sync_markers();
         const ge::Camera camera = ge::Camera::from_angle(position_, angle_, config_.fov_degrees);
+        if (edit_ && editor_.has_selection() && ge::is_solid_object(editor_.selected()))
+            renderer_.set_highlight_cell(editor_.selected_x(), editor_.selected_y());
+        else renderer_.clear_highlight();
         renderer_.render(level().map, camera, fb);
 
-        std::vector<ge::Sprite> sprites;
-        for (const Marker& m : markers_) sprites.push_back({m.position, m.size, m.color, m.flash, m.diamond});
-        for (const Orb& o : orbs_) sprites.push_back({o.position, o.stuck ? 0.10 : 0.14, o.stuck ? 0xFFB5531Cu : 0xFFFF9A3Cu, 0.0, false});
-        ge::draw_sprites(camera, renderer_.depth(), sprites, fb);
+        sprites_.clear();  // reused every frame; no allocation once it has grown
+        const double pulse = 0.5 + 0.4 * std::sin(elapsed_ * 8.0);
+        auto add_marker = [&](ge::Vec2 position, double size, std::uint32_t color, double flash, bool diamond) {
+            const bool selected = edit_ && editor_.has_selection() && static_cast<int>(std::floor(position.x)) == editor_.selected_x() &&
+                                  static_cast<int>(std::floor(position.y)) == editor_.selected_y();
+            sprites_.push_back({position, selected ? size * 1.3 : size, color, selected ? pulse : flash, diamond});
+        };
+        for (const Marker& m : markers_) add_marker(m.position, m.size, m.color, m.flash, m.diamond);
+        if (edit_) {
+            add_marker(level().spawn, 0.5, kPlayerMarker, 0.0, true);  // the player start is only drawn while editing
+            sprites_.push_back({{target_.free_x + 0.5, target_.free_y + 0.5}, 0.22, kWhite, 0.0, true});  // where an insert lands
+        }
+        for (const Orb& o : orbs_) sprites_.push_back({o.position, o.stuck ? 0.10 : 0.14, o.stuck ? 0xFFB5531Cu : 0xFFFF9A3Cu, 0.0, false});
+        ge::draw_sprites(camera, renderer_.depth(), sprites_, fb);
 
-        const int cx = fb.width() / 2, cy = fb.height() / 2;  // crosshair
-        for (int d = 2; d <= 4; ++d) {
-            fb.set_pixel(cx - d, cy, kWhite); fb.set_pixel(cx + d, cy, kWhite);
-            fb.set_pixel(cx, cy - d, kWhite); fb.set_pixel(cx, cy + d, kWhite);
+        const int cx = fb.width() / 2, cy = fb.height() / 2;  // crosshair (yellow and longer while editing)
+        const std::uint32_t cross = edit_ ? kYellow : kWhite;
+        for (int d = 2; d <= (edit_ ? 6 : 4); ++d) {
+            fb.set_pixel(cx - d, cy, cross); fb.set_pixel(cx + d, cy, cross);
+            fb.set_pixel(cx, cy - d, cross); fb.set_pixel(cx, cy + d, cross);
         }
 
         ge::draw_text_shadowed(fb, 4, 4, "SORTED VIEWER", kYellow);
         ge::draw_text_shadowed(fb, 4, 14, "LEVEL " + std::to_string(index_ + 1) + "/" + std::to_string(levels_.size()) + ": " + upper(level().name), kWhite);
         ge::draw_text_shadowed(fb, fb.width() - ge::text_width("ESC: HELP") - 4, 4, "ESC: HELP", kGrey);
-        if (hits_ > 0) ge::draw_text_shadowed(fb, 4, 24, "HITS: " + std::to_string(hits_), kWhite);
+        if (edit_) draw_edit_hud(fb);
+        else if (hits_ > 0) ge::draw_text_shadowed(fb, 4, 24, "HITS: " + std::to_string(hits_), kWhite);
+        if (message_time_ > 0.0) centered(fb, fb.height() - 14, message_, message_ok_ ? kWhite : kRed);
 
         if (debug_) draw_stats(fb);
         if (paused_) draw_help(fb, true);
@@ -154,19 +198,39 @@ public:
 private:
     using Clock = std::chrono::steady_clock;
 
-    const ge::Level& level() const { return levels_[index_]; }
+    const ge::Level& level() const { return editor_.level(); }
 
     static std::string upper(std::string s) {
         for (char& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
         return s;
     }
 
-    void enter_level(std::size_t index) {
-        index_ = index;
+    void toast(const ge::Status& status) {
+        message_ = upper(status.message);
+        message_ok_ = status.ok;
+        message_time_ = kMessageSeconds;
+    }
+
+    void respawn() {
         position_ = level().spawn;
         angle_ = level().spawn_angle;
-        orbs_.clear();
+    }
+
+    void enter_level(std::size_t index) {
+        if (entered_) levels_[index_] = editor_.level();  // keep what was saved if we come back
+        entered_ = true;
+        index_ = index;
+        editor_.load(levels_[index_], index_ < paths_.size() ? paths_[index_] : std::filesystem::path{});
+        respawn();
         hits_ = 0;
+        sync_markers();
+    }
+
+    // The markers (and the orbs stuck to walls) are derived from the level, so rebuild them when it changes.
+    void sync_markers() {
+        if (marker_revision_ == editor_.revision()) return;
+        marker_revision_ = editor_.revision();
+        orbs_.clear();
         markers_.clear();
         for (const ge::Vec2& p : level().target_spawns) markers_.push_back({p, 0xFF4FA3FFu, 0.45, false, true});
         for (const ge::Vec2& p : level().enemy_spawns) markers_.push_back({p, 0xFFE04040u, 0.55, false, true});
@@ -174,6 +238,61 @@ private:
             const std::uint32_t color = p.kind == ge::PickupKind::Health ? 0xFF4CD964u : p.kind == ge::PickupKind::Ammo ? 0xFFFFC107u : 0xFF40D0FFu;
             markers_.push_back({p.position, color, 0.30, true, false});
         }
+    }
+
+    void edit_step(const ge::InputState& in) {
+        const ge::Camera camera = ge::Camera::from_angle(position_, angle_, config_.fov_degrees);
+        target_ = ge::crosshair_target(level(), camera, kEditReach);
+        editor_.set_player_cell(static_cast<int>(std::floor(position_.x)), static_cast<int>(std::floor(position_.y)));
+        editor_.cycle_palette(in.edit_palette);
+        if (in.edit_deselect) editor_.deselect();
+        if (in.edit_select && target_.hit) editor_.select(target_.cell_x, target_.cell_y);
+        if (in.edit_insert) toast(editor_.insert(target_.free_x, target_.free_y));
+        if (in.edit_remove) toast(editor_.remove_selected());
+        if (in.edit_move) toast(editor_.move_selected(target_.free_x, target_.free_y));
+        if (in.edit_change) toast(editor_.change_selected());
+        if (in.edit_rotate != 0) toast(editor_.rotate_selected(in.edit_rotate));
+        if (in.edit_save) toast(editor_.save());
+        if (in.edit_load) {
+            const ge::Status reloaded = editor_.reload();
+            toast(reloaded);
+            if (reloaded) respawn();  // the old position may now be inside a wall
+        }
+    }
+
+    void draw_edit_hud(ge::Framebuffer& fb) const {
+        ge::draw_text_shadowed(fb, 4, 24, editor_.dirty() ? "EDIT MODE - UNSAVED" : "EDIT MODE", kYellow);
+        ge::draw_text_shadowed(fb, 4, 34, "INSERT: " + ge::object_name(editor_.palette_current()) + "  (WHEEL)", kWhite);
+        std::string selected = "SELECTED: NONE";
+        if (editor_.has_selection()) {
+            selected = "SELECTED: " + ge::object_name(editor_.selected()) + " (" + std::to_string(editor_.selected_x()) + "," +
+                       std::to_string(editor_.selected_y()) + ")";
+        }
+        ge::draw_text_shadowed(fb, 4, 44, selected, kWhite);
+        draw_minimap(fb);
+    }
+
+    // Top-down view of the whole level: the editor's overview, with the selection and the insert cursor marked.
+    void draw_minimap(ge::Framebuffer& fb) const {
+        const ge::GridMap& map = level().map;
+        const int cell = std::clamp(96 / std::max(map.width(), map.height()), 1, 6);
+        const int w = map.width() * cell, h = map.height() * cell;
+        const int x0 = fb.width() - w - 6, y0 = 16;
+        fill_rect(fb, x0 - 1, y0 - 1, w + 2, h + 2, 0xFF000000u);
+        for (int y = 0; y < map.height(); ++y)
+            for (int x = 0; x < map.width(); ++x)
+                fill_rect(fb, x0 + x * cell, y0 + y * cell, cell, cell, kMapColors[std::min<int>(map.cell(x, y), 11)]);
+        auto dot = [&](ge::Vec2 p, std::uint32_t color) {
+            const int size = std::max(2, cell - 1);
+            fill_rect(fb, x0 + static_cast<int>(std::floor(p.x)) * cell + (cell - size) / 2, y0 + static_cast<int>(std::floor(p.y)) * cell + (cell - size) / 2, size, size, color);
+        };
+        for (const Marker& m : markers_) dot(m.position, m.color);
+        dot(level().spawn, kPlayerMarker);
+        const int px = x0 + static_cast<int>(position_.x * cell), py = y0 + static_cast<int>(position_.y * cell);
+        fill_rect(fb, px - 1, py - 1, 3, 3, kWhite);  // you, with a short line showing where you face
+        fill_rect(fb, px + static_cast<int>(std::lround(std::cos(angle_) * 3.0)), py + static_cast<int>(std::lround(std::sin(angle_) * 3.0)), 1, 1, kYellow);
+        frame_rect(fb, x0 + target_.free_x * cell - 1, y0 + target_.free_y * cell - 1, cell + 2, cell + 2, kWhite);
+        if (editor_.has_selection()) frame_rect(fb, x0 + editor_.selected_x() * cell - 1, y0 + editor_.selected_y() * cell - 1, cell + 2, cell + 2, kYellow);
     }
 
     void update_orbs(double dt) {
@@ -214,21 +333,36 @@ private:
     }
 
     void draw_help(ge::Framebuffer& fb, bool paused) const {
-        const int w = std::min(fb.width() - 16, 232), h = 100;
+        const char* lines[] = {"WASD / ARROWS: MOVE AND TURN", "MOUSE: LOOK   CLICK/SPACE: SHOOT", "E: NEXT LEVEL   R: TEXTURES",
+                               "F3: STATISTICS   ESC: PAUSE", "F2: EDIT MODE (SHOOTING OFF)",
+                               "LEFT CLICK: SELECT  RIGHT: INSERT", "WHEEL: CHOOSE WHAT TO INSERT",
+                               "X/DEL: REMOVE   C: CHANGE TO CHOICE", "M: MOVE   , .: ROTATE PLAYER START",
+                               "BACKSPACE: DESELECT", "F5: SAVE   F9: RELOAD FROM FILE"};
+        const int count = paused ? 11 : 5;  // the start-up hint stays short; the pause panel lists everything
+        const int w = std::min(fb.width() - 16, 232), h = 46 + count * 11 + (paused && editor_.dirty() ? 11 : 0);
         const int x = (fb.width() - w) / 2, y = (fb.height() - h) / 2;
         fill_rect(fb, x, y, w, h, 0xFF101820u);
         fill_rect(fb, x, y, w, 1, kYellow); fill_rect(fb, x, y + h - 1, w, 1, kYellow);
         fill_rect(fb, x, y, 1, h, kYellow); fill_rect(fb, x + w - 1, y, 1, h, kYellow);
         centered(fb, y + 8, paused ? "PAUSED" : "SORTED VIEWER", kYellow);
-        const char* lines[] = {"WASD / ARROWS: MOVE AND TURN", "MOUSE: LOOK", "CLICK OR SPACE: SHOOT ORBS",
-                               "E: NEXT LEVEL   R: TEXTURES ON/OFF", "F3: STATISTICS   ESC: PAUSE"};
         int ly = y + 24;
-        for (const char* line : lines) { centered(fb, ly, line, kWhite); ly += 11; }
+        for (int i = 0; i < count; ++i) { centered(fb, ly, lines[i], kWhite); ly += 11; }
+        if (paused && editor_.dirty()) centered(fb, ly, "UNSAVED EDITS: Q DISCARDS THEM", kRed);
         centered(fb, y + h - 14, paused ? "ESC: RESUME   Q: QUIT" : "ESC: PAUSE", kGrey);
     }
 
     ge::EngineConfig config_;
     std::vector<ge::Level> levels_;
+    std::vector<std::filesystem::path> paths_;
+    ge::LevelEditor editor_;
+    std::uint64_t marker_revision_ = ~std::uint64_t{0};
+    bool entered_ = false;  // editor_ holds a level
+    bool edit_ = false;
+    ge::CrosshairTarget target_;
+    std::vector<ge::Sprite> sprites_;
+    std::string message_;
+    bool message_ok_ = true;
+    double message_time_ = 0.0;
     std::size_t start_ = 0;
     std::size_t index_ = 0;
     bool textured_ = true;
@@ -264,6 +398,8 @@ void print_usage(std::FILE* out) {
                  "Usage: sorted-viewer [options]\n"
                  "Controls: WASD/arrows move, mouse look, click/Space shoot, E next level, R textures,\n"
                  "          F3 statistics, Esc pause, Q quit (while paused)\n"
+                 "Editing:  F2 edit mode, left click select, right click insert, wheel or [ ] choose, X/Delete remove,\n"
+                 "          M move, C change, , . rotate the player start, Backspace deselect, F5 save, F9 reload\n"
                  "Options:%s",
                  options ? options : "\n");
 }
@@ -307,6 +443,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     std::vector<ge::Level> levels;
+    std::vector<std::filesystem::path> level_paths;  // the file behind each level, for saving
     std::size_t start_index = 0;
     bool level_found = false;
     if (resources) {
@@ -315,6 +452,7 @@ int main(int argc, char** argv) {
             if (auto level = resources->load_level(name, ignored)) {
                 if (name == config.level) { start_index = levels.size(); level_found = true; }  // --level NAME
                 levels.push_back(std::move(*level));
+                level_paths.push_back(resources->root() / "levels" / (name + ".txt"));
             }
         }
     }
@@ -323,11 +461,13 @@ int main(int argc, char** argv) {
         std::optional<ge::Level> chosen = resources ? resources->load_level(config.level, error) : ge::load_level_file(config.level, error);
         if (!chosen) { std::fprintf(stderr, "error: %s\n", error.c_str()); return 1; }
         levels.insert(levels.begin(), std::move(*chosen));
+        level_paths.insert(level_paths.begin(), std::filesystem::path(config.level));
         start_index = 0;
     }
     if (levels.empty()) {
         std::fprintf(stderr, "[viewer] no assets found (use --assets DIR); showing the built-in test level\n");
         levels.push_back(ge::test_level());
+        level_paths.emplace_back();  // built in: nothing to save to
     }
 
     // ---- window or headless ---------------------------------------------------------------------------
@@ -355,7 +495,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "error: %s\n", started.message.c_str());
         return 1;
     }
-    Viewer viewer(std::move(levels), start_index, config.textured);
+    Viewer viewer(std::move(levels), std::move(level_paths), start_index, config.textured);
     const int rc = engine.run(viewer);
     if (rc != 0) return rc;
     if (!window) {

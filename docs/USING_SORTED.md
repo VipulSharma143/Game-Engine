@@ -18,7 +18,15 @@ Download the installer for your system from the [Releases page](https://github.c
 The installer includes **SORTED Viewer**, a program built only on the engine: open it from the Start Menu (Windows) or your
 applications menu / `sorted-viewer` (Linux). Walk around with WASD and the mouse, shoot orbs with click or Space, `E` for the
 next level, `R` to turn textures off and on, `F3` for statistics (frame rate, which assembly routines run), `Esc` to pause.
-Its source is `viewer/main.cpp` in the repository, a good second example after the one below.
+Press `F2` for **edit mode**: select, insert, remove, move, change and save the objects of the level you are standing in
+(controls are in the README). Its source is `viewer/main.cpp` in the repository, a good second example after the one below.
+
+To edit levels from your own program, use the same engine pieces the Viewer uses: `ge::LevelEditor` (`engine/world/LevelEditor.hpp`:
+`insert`, `remove_selected`, `move_selected`, `change_selected`, `rotate_selected`, `save`, `reload`; every call validates and
+returns a `Status` message, so a bad request changes nothing), `ge::crosshair_target` (what the camera points at and where an
+insert would land), `ge::Renderer::set_highlight_cell`, and `ge::save_level_file` / `ge::serialize_level_text` in
+`LevelLoader.hpp`, the exact inverse of `parse_level_text`. The editor edits cells and spawn points: walls and doors have no
+direction or size in the level format, so only the player start can be rotated and nothing can be scaled.
 
 ## Build your own game on SORTED
 

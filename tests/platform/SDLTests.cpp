@@ -1,4 +1,6 @@
 // Runs the real SDL3 platform on SDL's "dummy" video driver, so no display is needed.
+#include <SDL3/SDL.h>
+
 #include <cstdlib>
 
 #include "TestFramework.hpp"
@@ -109,4 +111,65 @@ TEST(sdl_audio_device_pulls_and_plays_the_mixer_on_the_dummy_driver) {
     CHECK(mixer.active_voices() <= 1u);
     device.close();
     CHECK(!device.is_open());
+}
+
+namespace {
+void push_key(SDL_Scancode sc) {
+    SDL_Event e{};
+    e.type = SDL_EVENT_KEY_DOWN;
+    e.key.scancode = sc;
+    e.key.repeat = false;
+    SDL_PushEvent(&e);
+}
+void push_click(Uint8 button) {
+    SDL_Event e{};
+    e.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    e.button.button = button;
+    SDL_PushEvent(&e);
+}
+void push_wheel(float y) {
+    SDL_Event e{};
+    e.type = SDL_EVENT_MOUSE_WHEEL;
+    e.wheel.y = y;
+    e.wheel.direction = SDL_MOUSEWHEEL_NORMAL;
+    SDL_PushEvent(&e);
+}
+}  // namespace
+
+TEST(sdl_platform_maps_editing_keys_clicks_and_wheel) {
+    use_dummy_driver();
+    auto platform = ge::make_window_platform();
+    ge::EngineConfig cfg;
+    cfg.capture_mouse = false;
+    CHECK(platform->init(cfg).ok);
+
+    for (SDL_Scancode sc : {SDL_SCANCODE_F2, SDL_SCANCODE_X, SDL_SCANCODE_M, SDL_SCANCODE_C, SDL_SCANCODE_BACKSPACE,
+                            SDL_SCANCODE_F5, SDL_SCANCODE_F9, SDL_SCANCODE_RIGHTBRACKET, SDL_SCANCODE_RIGHTBRACKET,
+                            SDL_SCANCODE_LEFTBRACKET, SDL_SCANCODE_PERIOD, SDL_SCANCODE_PERIOD, SDL_SCANCODE_COMMA})
+        push_key(sc);
+    push_click(SDL_BUTTON_LEFT);
+    push_click(SDL_BUTTON_RIGHT);
+    ge::InputState in;
+    platform->poll_input(in);
+    CHECK(in.edit_toggle && in.edit_remove && in.edit_move && in.edit_change && in.edit_deselect);
+    CHECK(in.edit_save && in.edit_load && in.edit_select && in.edit_insert);
+    CHECK_EQ(in.edit_palette, 1);   // two ] and one [
+    CHECK_EQ(in.edit_rotate, 1);    // two . and one ,
+    CHECK(!in.use && !in.pause);    // editing keys do not trigger gameplay actions
+
+    push_key(SDL_SCANCODE_DELETE);  // Delete is a second key for remove
+    ge::InputState second;
+    platform->poll_input(second);
+    CHECK(second.edit_remove && !second.edit_toggle && !second.edit_select);
+
+    push_wheel(1.0f); push_wheel(1.0f); push_wheel(-1.0f);
+    push_wheel(0.4f); push_wheel(0.4f);   // touchpad fractions: not yet a notch
+    ge::InputState wheel;
+    platform->poll_input(wheel);
+    CHECK_EQ(wheel.edit_palette, 1);
+    push_wheel(0.4f);                     // the third 0.4 completes a notch (3 x 0.4 = 1.2)
+    ge::InputState later;
+    platform->poll_input(later);
+    CHECK_EQ(later.edit_palette, 1);
+    platform->shutdown();
 }

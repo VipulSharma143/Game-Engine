@@ -14,7 +14,7 @@ asm/x86_64/      NASM sources                                          (only via
 
 - `core`: config, logger, timer, fixed-step loop, `Engine`, `Application` interface.
 - `renderer`: `Framebuffer`, `Camera`, `cast_ray` (DDA), `Renderer` (walls + depth buffer).
-- `world` / `physics`: `GridMap`, `Level`, AABB collision, sliding movement.
+- `world` / `physics`: `GridMap`, `Level`, AABB collision, sliding movement; `LevelEditor` (select/insert/remove/move/change/rotate a `Level`, save/reload) and level serialization. Editing keys are fixed in the SDL platform (not in `settings.ini`); the Viewer maps them to `LevelEditor` calls.
 - `platform`: `IPlatform` interface; `HeadlessPlatform` and the SDL3 platform implement it. No OS headers outside this directory.
 - `optimized`: `scalar::` reference implementations and `opt::` dispatch (NASM when `GE_HAVE_ASM`).
 
@@ -75,7 +75,7 @@ Every behaviour change needs a test in `tests/` (harness: `tests/support/TestFra
 
 ## Implemented vs planned
 
-Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum) with fallbacks, tests, benchmark tool. Also implemented: SDL3 window and input, textured rendering, enemies, weapons, pickups, doors, audio, text levels, `.deb` and Setup.exe packaging. Not verified locally: the MSVC build, the Windows installer (CI only), Clang. **Planned (do not describe as working):** JSON levels/prefabs, editor, scripting, multithreading.
+Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum) with fallbacks, tests, benchmark tool. Also implemented: SDL3 window and input, textured rendering, enemies, weapons, pickups, doors, audio, text levels, in-Viewer level editing (`F2`: select, insert, remove, move, change, rotate the player start, save, reload), `.deb` and Setup.exe packaging. Not verified locally: the MSVC build, the Windows installer (CI only), Clang. **Planned (do not describe as working):** JSON levels/prefabs, a standalone editor tool, scripting, multithreading.
 
 Do not claim a feature exists because a file or directory exists: empty directories under `assets/`, `tools/` and `engine/{audio,resources}` are reserved placeholders.
 

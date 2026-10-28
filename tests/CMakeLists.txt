@@ -30,3 +30,5 @@ target_compile_definitions(unit_systems PRIVATE GE_ASSETS_DIR="${PROJECT_SOURCE_
 ge_add_test(unit_audio ge_game unit/AudioTests.cpp)
 ge_add_test(unit_enemy ge_game unit/EnemyTests.cpp)
 ge_add_test(unit_world_gameplay ge_game unit/WorldGameplayTests.cpp)
+ge_add_test(unit_editor ge_engine unit/EditorTests.cpp)
+target_compile_definitions(unit_editor PRIVATE GE_ASSETS_DIR="${PROJECT_SOURCE_DIR}/assets")
