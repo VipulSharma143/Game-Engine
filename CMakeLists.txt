@@ -60,6 +60,8 @@ add_library(ge_engine STATIC
   engine/renderer/Raycaster.cpp
   engine/renderer/Renderer.cpp
   engine/renderer/SpriteRenderer.cpp
+  engine/renderer/Particles.cpp
+  engine/renderer/SpriteImage.cpp
   engine/renderer/Texture.cpp
   engine/renderer/TextRenderer.cpp
   engine/world/MotionBatch.cpp
@@ -82,7 +84,10 @@ add_library(ge_game STATIC
   game/src/DemoTour.cpp
   game/src/GameApplication.cpp
   game/src/GameApplicationWorld.cpp
+  game/src/Definitions.cpp
   game/src/Enemy.cpp
+  game/src/Projectiles.cpp
+  game/src/SpriteArt.cpp
   game/src/Hud.cpp
   game/src/GameAudio.cpp
   game/src/PlayerController.cpp

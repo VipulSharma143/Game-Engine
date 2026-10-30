@@ -33,6 +33,7 @@ std::optional<Level> parse_level_text(std::string_view text, std::string& error)
     std::string name = "Untitled";
     double angle_deg = 0.0;
     int waves = 3;
+    std::string theme = "default";
     std::vector<std::string_view> rows;
     std::vector<std::string> comments;
     bool in_map = false;
@@ -78,6 +79,12 @@ std::optional<Level> parse_level_text(std::string_view text, std::string& error)
                 return std::nullopt;
             }
             waves = static_cast<int>(w);
+        } else if (key == "theme") {
+            if (!is_known_theme(value)) {
+                error = "line " + std::to_string(line_no) + ": unknown theme '" + std::string(value) + "' (use default, foundry, cavern or lab)";
+                return std::nullopt;
+            }
+            theme = std::string(value);
         } else {
             error = "line " + std::to_string(line_no) + ": unknown key '" + std::string(key) + "'";
             return std::nullopt;
@@ -111,6 +118,7 @@ std::optional<Level> parse_level_text(std::string_view text, std::string& error)
     level->name = name;
     level->spawn_angle = angle_deg * kPi / 180.0;
     level->waves_to_win = waves;
+    level->theme = theme;
     level->comments = std::move(comments);
     return level;
 }
@@ -147,9 +155,7 @@ std::optional<std::string> serialize_level_text(const Level& level, std::string&
         for (int x = 0; x < w; ++x) {
             const std::uint8_t id = level.map.cell(x, y);
             char c = '.';
-            if (id >= 1 && id <= 9) c = static_cast<char>('0' + id);
-            else if (id == kDoorId) c = 'D';
-            else if (id == kLockedDoorId) c = 'L';
+            if (id != 0 && wall_char(id) != 0) c = wall_char(id);
             else if (id != 0) { error = "wall id " + std::to_string(id) + " at (" + std::to_string(x) + ", " + std::to_string(y) + ") has no level-file character"; return std::nullopt; }
             rows[static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)] = c;
         }
@@ -167,9 +173,15 @@ std::optional<std::string> serialize_level_text(const Level& level, std::string&
     };
     if (!put(level.spawn, 'P', "player spawn")) return std::nullopt;
     for (const Vec2& p : level.target_spawns) if (!put(p, 'T', "target")) return std::nullopt;
-    for (const Vec2& p : level.enemy_spawns) if (!put(p, 'E', "enemy")) return std::nullopt;
-    for (const PickupSpawn& p : level.pickups)
-        if (!put(p.position, p.kind == PickupKind::Health ? 'H' : p.kind == PickupKind::Ammo ? 'A' : 'K', "pickup")) return std::nullopt;
+    for (const EnemySpawn& p : level.enemy_spawns) {
+        constexpr char kChars[kEnemyKindCount] = {'E', 'G', 'B', 'F'};
+        if (!put(p.position, kChars[static_cast<int>(p.kind) % kEnemyKindCount], "enemy")) return std::nullopt;
+    }
+    for (const PickupSpawn& p : level.pickups) {
+        constexpr char kChars[] = {'H', 'A', 'K', 'S', 'C', 'R'};
+        if (!put(p.position, kChars[static_cast<int>(p.kind)], "pickup")) return std::nullopt;
+    }
+    if (!is_known_theme(level.theme)) { error = "unknown theme '" + level.theme + "'"; return std::nullopt; }
 
     char number[48];
     std::string out;
@@ -177,7 +189,9 @@ std::optional<std::string> serialize_level_text(const Level& level, std::string&
     out += "name: " + level.name + "\n";
     std::snprintf(number, sizeof number, "angle: %.9g\n", level.spawn_angle * 180.0 / kPi);
     out += number;
-    out += "waves: " + std::to_string(level.waves_to_win) + "\nmap:\n";
+    out += "waves: " + std::to_string(level.waves_to_win) + "\n";
+    if (level.theme != "default") out += "theme: " + level.theme + "\n";
+    out += "map:\n";
     for (int y = 0; y < h; ++y) {
         out.append(rows.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(w), static_cast<std::size_t>(w));
         out += '\n';

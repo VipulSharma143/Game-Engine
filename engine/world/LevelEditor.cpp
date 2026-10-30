@@ -8,12 +8,17 @@
 namespace ge {
 namespace {
 
-// Walls 1-9, then the other objects. The player start is not here: there is exactly one, so it is only moved.
+// Walls 1-9, then the other objects, then the newer enemies, weapons and walls (so older indices stay put).
+// The player start is not here: there is exactly one, so it is only moved.
 constexpr EditObject kPalette[] = {
     {ObjectKind::Wall, 1}, {ObjectKind::Wall, 2}, {ObjectKind::Wall, 3}, {ObjectKind::Wall, 4}, {ObjectKind::Wall, 5},
     {ObjectKind::Wall, 6}, {ObjectKind::Wall, 7}, {ObjectKind::Wall, 8}, {ObjectKind::Wall, 9},
     {ObjectKind::Door, 0}, {ObjectKind::LockedDoor, 0}, {ObjectKind::Target, 0}, {ObjectKind::Enemy, 0},
     {ObjectKind::Health, 0}, {ObjectKind::Ammo, 0}, {ObjectKind::Key, 0},
+    {ObjectKind::Gunner, 0}, {ObjectKind::Brute, 0}, {ObjectKind::Skitter, 0},
+    {ObjectKind::Shotgun, 0}, {ObjectKind::Chaingun, 0}, {ObjectKind::Launcher, 0},
+    {ObjectKind::Wall, 12}, {ObjectKind::Wall, 13}, {ObjectKind::Wall, 14}, {ObjectKind::Wall, 15},
+    {ObjectKind::Wall, 16}, {ObjectKind::Wall, 17},
 };
 constexpr int kPaletteSize = static_cast<int>(sizeof kPalette / sizeof kPalette[0]);
 
@@ -21,8 +26,37 @@ Vec2 center_of(int x, int y) noexcept { return {x + 0.5, y + 0.5}; }
 bool at_cell(Vec2 p, int x, int y) noexcept { return static_cast<int>(std::floor(p.x)) == x && static_cast<int>(std::floor(p.y)) == y; }
 bool row_major_less(Vec2 a, Vec2 b) noexcept { return a.y != b.y ? a.y < b.y : a.x < b.x; }
 
+bool is_pickup_kind(ObjectKind k) noexcept {
+    return k == ObjectKind::Health || k == ObjectKind::Ammo || k == ObjectKind::Key || k == ObjectKind::Shotgun ||
+           k == ObjectKind::Chaingun || k == ObjectKind::Launcher;
+}
 PickupKind pickup_kind(ObjectKind k) noexcept {
-    return k == ObjectKind::Health ? PickupKind::Health : k == ObjectKind::Ammo ? PickupKind::Ammo : PickupKind::Key;
+    switch (k) {
+        case ObjectKind::Health: return PickupKind::Health;
+        case ObjectKind::Ammo: return PickupKind::Ammo;
+        case ObjectKind::Shotgun: return PickupKind::Shotgun;
+        case ObjectKind::Chaingun: return PickupKind::Chaingun;
+        case ObjectKind::Launcher: return PickupKind::Launcher;
+        default: return PickupKind::Key;
+    }
+}
+ObjectKind object_kind(PickupKind k) noexcept {
+    switch (k) {
+        case PickupKind::Health: return ObjectKind::Health;
+        case PickupKind::Ammo: return ObjectKind::Ammo;
+        case PickupKind::Key: return ObjectKind::Key;
+        case PickupKind::Shotgun: return ObjectKind::Shotgun;
+        case PickupKind::Chaingun: return ObjectKind::Chaingun;
+        case PickupKind::Launcher: return ObjectKind::Launcher;
+    }
+    return ObjectKind::Key;
+}
+bool is_enemy_kind(ObjectKind k) noexcept { return k == ObjectKind::Enemy || k == ObjectKind::Gunner || k == ObjectKind::Brute || k == ObjectKind::Skitter; }
+EnemyKind enemy_kind(ObjectKind k) noexcept {
+    return k == ObjectKind::Gunner ? EnemyKind::Gunner : k == ObjectKind::Brute ? EnemyKind::Brute : k == ObjectKind::Skitter ? EnemyKind::Skitter : EnemyKind::Grunt;
+}
+ObjectKind object_kind(EnemyKind k) noexcept {
+    return k == EnemyKind::Gunner ? ObjectKind::Gunner : k == EnemyKind::Brute ? ObjectKind::Brute : k == EnemyKind::Skitter ? ObjectKind::Skitter : ObjectKind::Enemy;
 }
 
 }  // namespace
@@ -34,7 +68,13 @@ std::string object_name(EditObject o) {
         case ObjectKind::Door: return "DOOR";
         case ObjectKind::LockedDoor: return "LOCKED DOOR";
         case ObjectKind::Target: return "TARGET";
-        case ObjectKind::Enemy: return "ENEMY";
+        case ObjectKind::Enemy: return "GRUNT";
+        case ObjectKind::Gunner: return "GUNNER";
+        case ObjectKind::Brute: return "BRUTE";
+        case ObjectKind::Skitter: return "SKITTER";
+        case ObjectKind::Shotgun: return "SHOTGUN";
+        case ObjectKind::Chaingun: return "CHAINGUN";
+        case ObjectKind::Launcher: return "ROCKET LAUNCHER";
         case ObjectKind::Health: return "HEALTH PACK";
         case ObjectKind::Ammo: return "AMMO";
         case ObjectKind::Key: return "KEY";
@@ -66,11 +106,8 @@ EditObject LevelEditor::object_at(int x, int y) const noexcept {
     if (id != 0) return {ObjectKind::Wall, id};
     if (at_cell(level_.spawn, x, y)) return {ObjectKind::PlayerStart, 0};
     for (const Vec2& p : level_.target_spawns) if (at_cell(p, x, y)) return {ObjectKind::Target, 0};
-    for (const Vec2& p : level_.enemy_spawns) if (at_cell(p, x, y)) return {ObjectKind::Enemy, 0};
-    for (const PickupSpawn& p : level_.pickups) {
-        if (!at_cell(p.position, x, y)) continue;
-        return {p.kind == PickupKind::Health ? ObjectKind::Health : p.kind == PickupKind::Ammo ? ObjectKind::Ammo : ObjectKind::Key, 0};
-    }
+    for (const EnemySpawn& p : level_.enemy_spawns) if (at_cell(p.position, x, y)) return {object_kind(p.kind), 0};
+    for (const PickupSpawn& p : level_.pickups) if (at_cell(p.position, x, y)) return {object_kind(p.kind), 0};
     return {};
 }
 
@@ -106,12 +143,12 @@ void LevelEditor::put(EditObject o, int x, int y) {
         case ObjectKind::Door: level_.map.set_cell(x, y, kDoorId); break;
         case ObjectKind::LockedDoor: level_.map.set_cell(x, y, kLockedDoorId); break;
         case ObjectKind::Target: level_.target_spawns.push_back(center_of(x, y)); break;
-        case ObjectKind::Enemy: level_.enemy_spawns.push_back(center_of(x, y)); break;
-        case ObjectKind::Health: case ObjectKind::Ammo: case ObjectKind::Key:
-            level_.pickups.push_back({pickup_kind(o.kind), center_of(x, y)});
-            break;
         case ObjectKind::PlayerStart: level_.spawn = center_of(x, y); break;
         case ObjectKind::None: break;
+        default:
+            if (is_enemy_kind(o.kind)) level_.enemy_spawns.push_back({center_of(x, y), enemy_kind(o.kind)});
+            else if (is_pickup_kind(o.kind)) level_.pickups.push_back({pickup_kind(o.kind), center_of(x, y)});
+            break;
     }
 }
 
@@ -119,7 +156,7 @@ void LevelEditor::take(int x, int y) {
     auto here = [&](Vec2 p) { return at_cell(p, x, y); };
     if (level_.map.cell(x, y) != 0) { level_.map.set_cell(x, y, 0); return; }
     std::erase_if(level_.target_spawns, here);
-    std::erase_if(level_.enemy_spawns, here);
+    std::erase_if(level_.enemy_spawns, [&](const EnemySpawn& p) { return here(p.position); });
     std::erase_if(level_.pickups, [&](const PickupSpawn& p) { return here(p.position); });
 }
 
@@ -127,7 +164,8 @@ void LevelEditor::take(int x, int y) {
 // identical to the one you get after save() and load.
 void LevelEditor::touch() noexcept {
     std::sort(level_.target_spawns.begin(), level_.target_spawns.end(), row_major_less);
-    std::sort(level_.enemy_spawns.begin(), level_.enemy_spawns.end(), row_major_less);
+    std::sort(level_.enemy_spawns.begin(), level_.enemy_spawns.end(),
+              [](const EnemySpawn& a, const EnemySpawn& b) { return row_major_less(a.position, b.position); });
     std::sort(level_.pickups.begin(), level_.pickups.end(),
               [](const PickupSpawn& a, const PickupSpawn& b) { return row_major_less(a.position, b.position); });
     dirty_ = true;

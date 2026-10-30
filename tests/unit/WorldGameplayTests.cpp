@@ -41,7 +41,7 @@ TEST(level_markers_for_enemies_pickups_and_doors_parse) {
     CHECK(level.has_value());
     if (!level) return;
     CHECK_EQ(level->enemy_spawns.size(), 1u);
-    CHECK_NEAR(level->enemy_spawns[0].x, 2.5, 0.0);
+    CHECK_NEAR(level->enemy_spawns[0].position.x, 2.5, 0.0);
     CHECK_EQ(level->pickups.size(), 3u);
     CHECK(level->pickups[0].kind == ge::PickupKind::Health);
     CHECK(level->pickups[1].kind == ge::PickupKind::Ammo);

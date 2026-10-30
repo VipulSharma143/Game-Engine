@@ -55,8 +55,9 @@ constexpr std::uint32_t kGrey = 0xFFB4BCC8u;
 constexpr std::uint32_t kRed = 0xFFFF6B6Bu;
 constexpr std::uint32_t kPlayerMarker = 0xFFE040E0u;
 // Minimap colours by wall id (0 = floor, 10 = door, 11 = locked door).
-constexpr std::uint32_t kMapColors[12] = {0xFF2A2A2Au, 0xFFC83C3Cu, 0xFF3CBE3Cu, 0xFF465ADCu, 0xFFD2BE3Cu, 0xFF3CBEBEu,
-                                          0xFFBE46BEu, 0xFFE6E6E6u, 0xFFE68C32u, 0xFF8C5A32u, 0xFF78501Eu, 0xFFAA2828u};
+constexpr std::uint32_t kMapColors[18] = {0xFF2A2A2Au, 0xFFC83C3Cu, 0xFF3CBE3Cu, 0xFF465ADCu, 0xFFD2BE3Cu, 0xFF3CBEBEu,
+                                          0xFFBE46BEu, 0xFFE6E6E6u, 0xFFE68C32u, 0xFF8C5A32u, 0xFF78501Eu, 0xFFAA2828u,
+                                          0xFF2E8B57u, 0xFFD4C020u, 0xFF6B8E4Eu, 0xFFA0522Du, 0xFFFF4500u, 0xFF7FD4FFu};
 
 struct Orb {
     ge::Vec2 position;
@@ -233,9 +234,13 @@ private:
         orbs_.clear();
         markers_.clear();
         for (const ge::Vec2& p : level().target_spawns) markers_.push_back({p, 0xFF4FA3FFu, 0.45, false, true});
-        for (const ge::Vec2& p : level().enemy_spawns) markers_.push_back({p, 0xFFE04040u, 0.55, false, true});
+        for (const ge::EnemySpawn& p : level().enemy_spawns) {
+            constexpr std::uint32_t kEnemyColors[ge::kEnemyKindCount] = {0xFFE04040u, 0xFFE0A030u, 0xFF9040C0u, 0xFF40E0A0u};
+            markers_.push_back({p.position, kEnemyColors[static_cast<int>(p.kind) % ge::kEnemyKindCount], 0.55, false, true});
+        }
         for (const ge::PickupSpawn& p : level().pickups) {
-            const std::uint32_t color = p.kind == ge::PickupKind::Health ? 0xFF4CD964u : p.kind == ge::PickupKind::Ammo ? 0xFFFFC107u : 0xFF40D0FFu;
+            constexpr std::uint32_t kPickupColors[] = {0xFF4CD964u, 0xFFFFC107u, 0xFF40D0FFu, 0xFFFF8030u, 0xFFC080FFu, 0xFFFF5050u};
+            const std::uint32_t color = kPickupColors[static_cast<int>(p.kind)];
             markers_.push_back({p.position, color, 0.30, true, false});
         }
     }
@@ -281,7 +286,7 @@ private:
         fill_rect(fb, x0 - 1, y0 - 1, w + 2, h + 2, 0xFF000000u);
         for (int y = 0; y < map.height(); ++y)
             for (int x = 0; x < map.width(); ++x)
-                fill_rect(fb, x0 + x * cell, y0 + y * cell, cell, cell, kMapColors[std::min<int>(map.cell(x, y), 11)]);
+                fill_rect(fb, x0 + x * cell, y0 + y * cell, cell, cell, kMapColors[std::min<int>(map.cell(x, y), 17)]);
         auto dot = [&](ge::Vec2 p, std::uint32_t color) {
             const int size = std::max(2, cell - 1);
             fill_rect(fb, x0 + static_cast<int>(std::floor(p.x)) * cell + (cell - size) / 2, y0 + static_cast<int>(std::floor(p.y)) * cell + (cell - size) / 2, size, size, color);

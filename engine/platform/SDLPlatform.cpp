@@ -133,6 +133,10 @@ void SDLPlatform::poll_input(InputState& input) {
                 if (contains(s.quit_menu, sc)) input.menu_quit = true;
                 // Editing keys are fixed (not in settings.ini): see InputState and docs/USING_SORTED.md.
                 switch (sc) {
+                    case SDL_SCANCODE_1: case SDL_SCANCODE_2: case SDL_SCANCODE_3: case SDL_SCANCODE_4: case SDL_SCANCODE_5:
+                    case SDL_SCANCODE_6: case SDL_SCANCODE_7: case SDL_SCANCODE_8: case SDL_SCANCODE_9:
+                        input.weapon_slot = static_cast<int>(sc) - static_cast<int>(SDL_SCANCODE_1) + 1;
+                        break;
                     case SDL_SCANCODE_F2: input.edit_toggle = true; break;
                     case SDL_SCANCODE_DELETE: case SDL_SCANCODE_X: input.edit_remove = true; break;
                     case SDL_SCANCODE_M: input.edit_move = true; break;
@@ -161,6 +165,7 @@ void SDLPlatform::poll_input(InputState& input) {
                 s.wheel_accumulator += e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -e.wheel.y : e.wheel.y;
                 const int steps = static_cast<int>(s.wheel_accumulator);  // whole notches only; touchpads send fractions
                 input.edit_palette += steps;
+                input.weapon_cycle += steps;  // the same wheel picks weapons in the game and palette items in the editor
                 s.wheel_accumulator -= static_cast<float>(steps);
                 break;
             }

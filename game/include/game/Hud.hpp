@@ -10,8 +10,12 @@
 namespace game {
 
 struct HudData {
+    int weapon = 0;                // WeaponId in hand
+    const char* weapon_name = "";
+    unsigned owned_weapons = 1;    // bit per WeaponId
     int ammo = 0;
     int magazine = 0;
+    int reserve = -1;              // spare rounds, -1 = unlimited
     bool reloading = false;
     double reload_fraction = 0.0;  // 0..1 while reloading
     double weapon_flash = 0.0;     // 0..1, recoil and muzzle flash
@@ -35,7 +39,7 @@ struct HudData {
     const char* backend = "";
 };
 
-void draw_weapon_view(ge::Framebuffer& fb, double flash, bool reloading);
+void draw_weapon_view(ge::Framebuffer& fb, double flash, bool reloading, int weapon = 0);
 void draw_hud(ge::Framebuffer& fb, const HudData& hud);
 
 // Full-screen overlays: they darken the scene behind them.
@@ -46,5 +50,7 @@ void draw_gameover_screen(ge::Framebuffer& fb, const HudData& hud);
 
 // Red flash over the whole view when the player is hit (amount 0..1).
 void tint_red(ge::Framebuffer& fb, double amount);
+// Warm orange wash for a nearby explosion (amount 0..1).
+void tint_warm(ge::Framebuffer& fb, double amount);
 
 }  // namespace game

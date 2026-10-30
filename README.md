@@ -42,6 +42,7 @@ shows a textured level you can walk around:
 | --- | --- |
 | W A S D / arrow keys, mouse | move, turn, look |
 | click or Space | shoot an orb (blue and red targets flash when hit; orbs stick to walls) |
+| 1-4, mouse wheel | (FunkShot) choose a weapon; the wheel cycles the ones you own |
 | E | next level |
 | R | textures on/off |
 | F3 | statistics: frame rate, position, which fog routine runs (NASM AVX2/SSE2 or C++) |
@@ -86,9 +87,9 @@ A complete first program is installed as `share/sorted/examples/hello-sorted/`. 
 
 ## What works
 
-- SDL3 window with keyboard/mouse input, menus and pause; textured raycaster with distance fog; enemies, weapon, pickups, doors, waves; four text-file levels; synthesised sound; headless mode with scripted input (PPM, ASCII, WAV output).
+- SDL3 window with keyboard/mouse input, menus and pause; textured raycaster with distance fog and level themes; four enemy kinds (pixel-art sprites, one shoots back), four weapons, projectiles with blast damage, particle effects, pickups, doors, waves; seven text-file levels; synthesised sound; headless mode with scripted input (PPM, ASCII, WAV output).
 - NASM x86-64 routines for System V and Windows x64 with bit-identical C++ fallbacks (fog kernels SSE2/AVX2). They are at performance parity or a modest speed-up; see [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
-- 18 CTest entries (unit, platform, assembly equivalence, integration), plus a separate benchmark tool.
+- 20 CTest entries (unit, platform, assembly equivalence, integration), plus a separate benchmark tool.
 
 ## Not implemented
 
@@ -134,22 +135,48 @@ Headless options: `--headless --ppm out.ppm` saves the final frame; `--window --
 
 ## Gameplay
 
-Red spheres are enemies. They stand still until they see you within about 9 cells, hear you fire, or get shot, then
-chase you around walls (they find routes through mazes and wait behind closed doors) and bite for 10 damage about once a
-second when close. Two shots kill one. You have 100 health; at 0 you get a "YOU DIED" screen and Enter retries
-the level from scratch. Diamonds are items: green health (+25, left alone if you are at full health), yellow ammo (refills
-the magazine), blue key (opens one locked steel door). Every third enemy you kill drops a health pack. A wave is cleared when
-all targets **and** all enemies are gone; clear the level's number of waves to win.
+**Enemies** are pixel-art creatures that stand still until they see you, hear you fire, or get shot, then chase you around
+walls (they find routes through mazes and wait behind closed doors). Four kinds:
+
+| Enemy | Health | Behaviour | Worth | Drops |
+| --- | --- | --- | --- | --- |
+| Grunt (`E`) | 60 | runs at you and bites for 10 | 150 | every third kill drops health |
+| Gunner (`G`) | 50 | keeps 3.5-8.5 cells away, sidesteps, shoots a slow bolt for 12 that you can dodge, backs off if you close in | 220 | ammo |
+| Brute (`B`) | 170 | slow, huge, bites for 28 | 400 | health |
+| Skitter (`F`) | 24 | very fast, bites for 5, one pistol shot | 90 | |
+
+**Weapons** (keys `1`-`4`, or the mouse wheel to cycle the ones you own; you start with the pistol):
+
+| Slot | Weapon | How it behaves |
+| --- | --- | --- |
+| 1 | Pistol | accurate, 34 damage, 12 rounds, never runs out of spare ammo |
+| 2 | Shotgun | 8 pellets in a spread, up to 112 damage up close, fading to a third at 9+ cells; 6 shells, 12 spare (max 36), slow pump |
+| 3 | Chaingun | about 12 rounds a second with a little spread; 40-round belt, 80 spare (max 240) |
+| 4 | Rocket launcher | a rocket you can see fly, explodes on contact or a wall with a 2.2-cell blast that fades with distance and is blocked by walls; 1 loaded + 5 spare, max 15 spare |
+
+Walk over a weapon item (`S` shotgun, `C` chaingun, `R` launcher) to take it and switch to it; picking up one you own adds
+ammo. Yellow ammo packs top up every weapon you own. Gunfire has sparks, enemies burst, rockets leave fire and smoke and
+flash the screen if you are close.
+
+You have 100 health; at 0 you get a "YOU DIED" screen and Enter retries the level from scratch. Diamonds are items: green
+health (+25, left alone if you are at full health), yellow ammo, blue key (opens one locked steel door). A wave is cleared
+when all targets **and** all enemies are gone; clear the level's number of waves to win. Wave N brings the first N enemies of
+the level in file order (top row first), so levels put easy enemies at the top and hard ones lower.
 
 `./start-all.sh` opens the `bunker` level by default (six rooms, doors, a locked vault, the key in the south-east room).
-Level markers: `E` enemy, `H` health, `A` ammo, `K` key, `D` door, `L` locked door (see `assets/levels/`).
+Try the new ones with `--level foundry` (furnace hall: grunts, gunners, a brute, a shotgun and a key-locked vault with a
+chaingun), `--level crossfire` (open lab: skitters then gunners crossing fire, chaingun and rocket launcher) and
+`--level catacombs` (a mossy maze of skitters and brutes with a shotgun and a launcher). `--list-levels` lists all seven.
 
 ## Levels, settings and key bindings
 
-- **Levels** are plain text files in `assets/levels/` (`hall`, `arena`, `maze` ship with the repo).
+- **Levels** are plain text files in `assets/levels/` (`hall`, `arena`, `maze`, `bunker`, `foundry`, `crossfire` and `catacombs` ship with the repo).
   `./start-all.sh -- --level arena` plays one, `--list-levels` lists them, and `--level path/to/file.txt` loads any file.
-  Format: optional `name:`, `angle:` (degrees), `waves:` lines, then `map:` followed by rows. `1`-`9` are wall
-  textures, `.` is floor, `P` is the single player start, `T` a preferred target spawn, `E` an enemy, `H`/`A`/`K` pickups, `D`/`L` doors. The border must be solid.
+  Format: optional `;` comment lines, `name:`, `angle:` (degrees), `waves:`, `theme:` (`default`, `foundry`, `cavern` or `lab`: the floor and
+  ceiling) lines, then `map:` followed by rows. `1`-`9` and `a`-`f` are wall textures (`a` circuit board, `b` hazard stripes,
+  `c` mossy stone, `d` rusty plates, `e` lava rock, `f` glass tiles), `.` is floor, `P` is the single player start, `T` a preferred
+  target spawn, `E`/`G`/`B`/`F` a grunt/gunner/brute/skitter, `H`/`A`/`K` health/ammo/key, `S`/`C`/`R` shotgun/chaingun/rocket
+  launcher, `D`/`L` doors. The border must be solid.
   Mistakes are reported with the file and line (`row 12 has a different length`).
 - **Settings:** copy `assets/settings.ini` next to where you run the demo as `settings.ini` (or pass `--settings FILE`)
   to change resolution, FOV, mouse sensitivity, textures and every key binding (SDL key names, several per action
@@ -262,7 +289,7 @@ release.sh                  one-command release
 
 ## Limitations
 
-Single-threaded; levels are small text grids; no sprite or texture files (everything is generated in code); on Windows the
+Single-threaded; levels are small text grids; no sprite or texture files (everything, including the pixel-art enemies, is generated in code); on Windows the
 demo opens a console window next to the game window (it logs there). The NASM routines are correct but only modestly
 faster than the C++ fallbacks (see [docs/PERFORMANCE.md](docs/PERFORMANCE.md)).
 

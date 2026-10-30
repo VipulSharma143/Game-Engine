@@ -1,0 +1,25 @@
+; A furnace hall: grunts first, then gunners that shoot back, then a brute.
+; Take the shotgun by the start; the key in the south-west opens the vault with a chaingun.
+name: Rust Foundry
+angle: 0
+waves: 5
+theme: foundry
+map:
+dddddddddddddddddddddddddddddd
+d.............H..............d
+d.......d......E.....d.......d
+d...b...d.....b......d...b...d
+d..S....d............dE......d
+d.......d............d....G..d
+d.......d...beeeeb...d..dddddd
+d...........eeeeee......d....d
+d.........H.eeeeee......L..C.d
+d.P...A.....eeeeee....A.d.A..d
+d...........eeeeee......d..H.d
+d.......d...beeeeb...d..dddddd
+d.....G.d............d.......d
+d.......d.....B......d.......d
+d...b...d......b.....d...b...d
+d..K....d............d.......d
+d.............H..............d
+dddddddddddddddddddddddddddddd

@@ -1,0 +1,27 @@
+; An open laboratory with cover: fast skitters, then gunners crossing fire, then a brute.
+; The chaingun is by the start, the rocket launcher across the room.
+name: Crossfire Lab
+angle: 0
+waves: 6
+theme: lab
+map:
+aaaaaaaaaaaaaaaaaaaaaaaaaa
+a........................a
+a.H.F................F.H.a
+a........aaaaaaaa........a
+a........................a
+a..C..ff....G......ff....a
+a.....ff...........ff....a
+a........................a
+a..........bbbb..........a
+a..a.........A........a..a
+a.Pa.........H........a..a
+a..........bbbb..........a
+a....G..............G....a
+a........................a
+a.....ff...........ff.R..a
+a.....ff...........ff....a
+a........aaaaaaaa........a
+a.A....................A.a
+a............B...........a
+aaaaaaaaaaaaaaaaaaaaaaaaaa

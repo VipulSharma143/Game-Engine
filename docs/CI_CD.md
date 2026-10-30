@@ -5,7 +5,7 @@ developer machine.
 
 | Job | Runs on | What it does |
 | --- | --- | --- |
-| `linux` | ubuntu-24.04 | changelog checks; `./build.sh --release --sdl fetch --werror --package` (build, 18 tests, FunkShot `.deb`, `sorted` `.deb`); installs both packages, runs FunkShot and SORTED Viewer from `/` with an empty environment, checks the menu entries, and builds the example against the installed engine with no CMake hints (`tools/sdk-smoke-test.sh`) |
+| `linux` | ubuntu-24.04 | changelog checks; `./build.sh --release --sdl fetch --werror --package` (build, 20 tests, FunkShot `.deb`, `sorted` `.deb`); installs both packages, runs FunkShot and SORTED Viewer from `/` with an empty environment, checks the menu entries, and builds the example against the installed engine with no CMake hints (`tools/sdk-smoke-test.sh`) |
 | `windows` | windows-latest | MSVC x64 + NASM + Inno Setup: `./build.sh --release --sdl fetch --package` (build, tests, `FunkShot-Setup.exe`, `SORTED-Setup.exe`); silently installs the game, checks the Start Menu shortcut, runs it, uninstalls; installs SORTED, checks the Viewer, its shortcut and `SORTED_ROOT`, builds the example against it, uninstalls and checks everything is removed |
 | `release` | ubuntu-24.04 | Tags only, and only after both jobs passed: checks the tag is on `main`, matches `CMakeLists.txt` and has a dated changelog entry, that no release for it exists, then publishes **one** release with exactly `FunkShot-Setup.exe`, `funkshot_X.Y.Z_amd64.deb`, `SORTED-Setup.exe`, `sorted_X.Y.Z_amd64.deb` and `SHA256SUMS.txt`, using the changelog entry as notes |
 

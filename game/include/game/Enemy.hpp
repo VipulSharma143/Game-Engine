@@ -13,6 +13,7 @@ enum class EnemyState { Idle, Chase, Attack };
 
 // Component attached to enemy entities (together with Transform, Health and Collider).
 struct Enemy {
+    ge::EnemyKind kind = ge::EnemyKind::Grunt;
     EnemyState state = EnemyState::Idle;
     double speed = 1.7;           // cells per second
     double sight = 9.0;           // notices the player in line of sight within this distance
@@ -22,7 +23,20 @@ struct Enemy {
     int damage = 10;
     double radius = 0.3;          // body radius (collision and hit detection)
     double flash = 0.0;           // 0..1 hit feedback
+    // Ranged enemies (gunners) keep their distance and shoot instead of biting.
+    bool ranged = false;
+    double min_range = 0.0;       // backs away when the player is closer than this
+    double max_range = 0.0;       // stands and shoots within this distance (Attack state)
+    double shoot_interval = 1.5;
+    double shoot_cooldown = 0.0;
+    int shot_damage = 0;
+    double shot_speed = 0.0;      // cells per second
+    double strafe_timer = 0.0;    // while attacking they sidestep, switching direction every so often
+    int strafe_sign = 1;
 };
+
+// A fresh enemy of this kind with its numbers from the definition table (game/Definitions.hpp).
+Enemy make_enemy(ge::EnemyKind kind) noexcept;
 
 // True if no wall lies between `a` and `b`.
 bool line_of_sight(const ge::GridMap& map, ge::Vec2 a, ge::Vec2 b) noexcept;
@@ -49,6 +63,8 @@ private:
 struct EnemyDecision {
     ge::Vec2 move{};      // displacement for this step (before collision)
     bool attack = false;  // bites the player this step
+    bool fire = false;    // shoots a bolt this step (ranged enemies)
+    ge::Vec2 aim{};       // unit vector towards the player when `fire`
 };
 
 // Advances the state machine and returns what the enemy wants to do. `alerted` means the player

@@ -11,6 +11,12 @@ two newest releases are kept in this file; older releases are in [ARCHIVE_CHANGE
 - Edit levels inside SORTED Viewer. Press `F2` for edit mode: left click selects what the crosshair points at (walls, doors, targets, enemies, pickups, the player start), right click inserts the item chosen with the mouse wheel or `]`/`[`, `X`/`Delete` removes, `M` moves, `C` changes it into the chosen item, `.`/`,` rotates the player start, `F5` saves the level file and `F9` reloads it. Changes show at once in the 3D view and on a minimap. There is no scaling (levels store no sizes) and no undo; `F9` goes back to the last save.
 - New engine pieces behind it: `ge::LevelEditor`, `ge::crosshair_target`, `ge::Renderer::set_highlight_cell`, and `serialize_level_text` / `save_level_file`, the exact inverse of loading a level (saves are atomic and refuse levels that would not load again).
 
+- FunkShot gets **three new enemies**: the gunner (shoots dodgeable bolts, keeps its distance, backs off when you close in, drops ammo), the brute (slow, 170 health, hits for 28, drops health) and the skitter (very fast, fragile). Enemies are now pixel-art creatures with a walking animation instead of red spheres, and each kind is a row in a definition table.
+- FunkShot gets **three new weapons**: a shotgun (8 pellets, spread and falloff), a chaingun (rapid fire) and a rocket launcher (a visible rocket with blast damage that fades with distance and is blocked by walls), with spare-ammo reserves, weapon pickups, ammo packs that top up everything you own, and per-weapon views. Choose with `1`-`4` or the mouse wheel.
+- Effects: sparks where shots land, blood bursts, fire and smoke from rockets, a warm screen flash for nearby blasts, and new sounds (shotgun, chaingun, rocket, explosion, enemy bolt, weapon switch).
+- Three new levels (`foundry`, `crossfire`, `catacombs`), six new wall textures (circuit board, hazard stripes, mossy stone, rust, lava rock, glass) and three themes with their own floors and ceilings. The level format gains `G`/`B`/`F` enemies, `S`/`C`/`R` weapon pickups, `a`-`f` walls and a `theme:` line; every existing level file still loads and saves unchanged.
+- New engine pieces: `ge::SpriteImage` (pixel art from text, drawn with transparency, height and brightness), `ge::ParticleSystem` (a fixed, deterministic pool of sparks, smoke and fire), themed `TextureSet::make_procedural(theme)`. The level editor palette includes the new enemies, weapons and walls.
+
 ### Improvements
 
 - Levels keep their `;` description lines when loaded and saved.

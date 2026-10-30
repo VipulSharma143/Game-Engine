@@ -1,6 +1,7 @@
 #include "engine/renderer/Texture.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 
 namespace ge {
 
@@ -132,9 +133,119 @@ void make_ceiling(Texture& t, Rgb base, std::uint32_t seed) {
         }
 }
 
+// ---- extra walls (ids 12-17) ----
+
+// Circuit board: dark base, bright traces with right-angle turns and solder pads.
+void make_circuit(Texture& t, Rgb base, std::uint32_t seed) {
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const int cx = x / 8, cy = y / 8;
+            const std::uint32_t h = texture_hash(static_cast<std::uint32_t>(cx), static_cast<std::uint32_t>(cy), seed);
+            const bool horizontal = (h & 1u) != 0 && (y % 8) == 3 + static_cast<int>((h >> 4) % 3u);
+            const bool vertical = (h & 1u) == 0 && (x % 8) == 3 + static_cast<int>((h >> 4) % 3u);
+            const bool pad = (h % 11u) == 0 && (x % 8) >= 2 && (x % 8) < 6 && (y % 8) >= 2 && (y % 8) < 6;
+            if (pad) { t.set(x, y, pack_rgb(235, 220, 120)); continue; }
+            if (horizontal || vertical) { t.set(x, y, tint(base, 150 + static_cast<int>(h % 40u))); continue; }
+            const bool seam = (x % 32) == 0 || (y % 32) == 0;
+            t.set(x, y, seam ? tint(base, 25) : tint(base, 38, noise_at(x, y, seed + 1, 6)));
+        }
+}
+
+// Hazard stripes: diagonal yellow and black bands in a bevelled frame.
+void make_hazard(Texture& t, std::uint32_t seed) {
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const bool frame = x < 3 || y < 3 || x >= 61 || y >= 61;
+            const bool yellow = ((x + y) / 10) % 2 == 0;
+            const int pct = frame ? ((x < 3 || y < 3) ? 125 : 65) : 100;
+            const Rgb c = frame ? Rgb{110, 110, 115} : (yellow ? Rgb{235, 195, 25} : Rgb{35, 35, 38});
+            t.set(x, y, tint(c, pct, noise_at(x, y, seed, 8)));
+        }
+}
+
+// Mossy stone: blocks with patches of green growing from the seams.
+void make_moss(Texture& t, Rgb base, std::uint32_t seed) {
+    make_blocks(t, base, seed);
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const int patch = noise_at(x / 3, y / 3, seed + 9, 100) + (((y % 32) < 10 || (x % 32) < 6) ? 40 : -20);
+            if (patch > 45) t.set(x, y, tint({60, 120 + noise_at(x, y, seed + 3, 40), 50}, 100 - (patch > 80 ? 20 : 0)));
+        }
+}
+
+// Rusty steel plates: riveted panels covered in orange-brown corrosion.
+void make_rust(Texture& t, Rgb base, std::uint32_t seed) {
+    make_panel(t, base, seed);
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const int r = noise_at(x / 2, y / 2, seed + 7, 100) + noise_at(x / 5, y / 4, seed + 8, 80);
+            if (r > 40) t.set(x, y, tint({170 + noise_at(x, y, seed, 30), 85, 40}, 100 - (r > 100 ? 25 : 0)));
+        }
+}
+
+// Lava rock: near-black stone with glowing cracks.
+void make_lava(Texture& t, std::uint32_t seed) {
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const int a = noise_at(x / 4, y / 4, seed, 100), b = noise_at((x + 3) / 4, (y + 5) / 4, seed + 1, 100);
+            const int crack = std::abs(a - b);
+            if (crack < 14) { t.set(x, y, pack_rgb(static_cast<unsigned>(clamp8(255 - crack * 4)), static_cast<unsigned>(clamp8(120 - crack * 4 + noise_at(x, y, seed, 30))), 20)); continue; }
+            t.set(x, y, tint({60, 50, 52}, 100, noise_at(x, y, seed + 2, 14)));
+        }
+}
+
+// Glass tiles: pale blue squares with a bright corner highlight and dark grout.
+void make_glass(Texture& t, Rgb base, std::uint32_t seed) {
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const int lx = x % 16, ly = y % 16;
+            if (lx == 0 || ly == 0) { t.set(x, y, tint(base, 35)); continue; }
+            const bool glint = (lx + ly) >= 3 && (lx + ly) < 6;
+            const int shade = 70 + (lx + ly) * 2 + static_cast<int>(texture_hash(static_cast<std::uint32_t>(x / 16), static_cast<std::uint32_t>(y / 16), seed) % 18u);
+            t.set(x, y, glint ? pack_rgb(235, 250, 255) : tint(base, shade, noise_at(x, y, seed + 1, 5)));
+        }
+}
+
+// ---- themed floors and ceilings ----
+
+void make_grate(Texture& t, Rgb base, std::uint32_t seed) {  // metal floor grating
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const bool bar = (x % 8) < 2 || (y % 32) < 2;
+            const bool hole = !bar && (x % 8) >= 3 && (x % 8) < 7 && (y % 8) >= 2 && (y % 8) < 6;
+            t.set(x, y, hole ? tint(base, 22) : tint(base, bar ? 100 : 70, noise_at(x, y, seed, 10)));
+        }
+}
+
+void make_rock(Texture& t, Rgb base, std::uint32_t seed) {  // rough cave rock, floor or ceiling
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x)
+            t.set(x, y, tint(base, 85 + noise_at(x / 4, y / 4, seed, 30), noise_at(x, y, seed + 1, 14)));
+}
+
+void make_tiles(Texture& t, Rgb base, std::uint32_t seed) {  // clean lab floor, small square tiles
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const bool grout = (x % 16) == 0 || (y % 16) == 0;
+            const int variation = static_cast<int>(texture_hash(static_cast<std::uint32_t>(x / 16), static_cast<std::uint32_t>(y / 16), seed) % 14u);
+            t.set(x, y, grout ? tint(base, 55) : tint(base, 92 + variation, noise_at(x, y, seed + 1, 4)));
+        }
+}
+
+void make_pipes_ceiling(Texture& t, Rgb base, std::uint32_t seed) {  // dark ceiling with pipes and amber lamps
+    for (int y = 0; y < Texture::kSize; ++y)
+        for (int x = 0; x < Texture::kSize; ++x) {
+            const bool pipe = (y % 32) >= 4 && (y % 32) < 10;
+            const bool lamp = (x % 32) >= 12 && (x % 32) < 20 && (y % 32) >= 20 && (y % 32) < 26;
+            if (lamp) { t.set(x, y, pack_rgb(255, 190, 90)); continue; }
+            if (pipe) { t.set(x, y, tint({110, 85, 70}, 90 + ((y % 32) - 4) * 4, noise_at(x, y, seed, 8))); continue; }
+            t.set(x, y, tint(base, 100, noise_at(x, y, seed + 1, 7)));
+        }
+}
+
 }  // namespace
 
-TextureSet TextureSet::make_procedural() {
+TextureSet TextureSet::make_procedural(std::string_view theme) {
     TextureSet s;
     // Wall id -> pattern and colour (colours follow the flat-shaded palette of the old renderer).
     for (int y = 0; y < Texture::kSize; ++y)  // missing-texture marker: magenta/black checker
@@ -151,9 +262,29 @@ TextureSet TextureSet::make_procedural() {
     make_planks(s.walls_[9], {150, 100, 55}, 9);
     make_door(s.walls_[10], false, 10);
     make_door(s.walls_[11], true, 11);
-    make_floor(s.floors_[0], {105, 100, 95}, 20);
-    make_floor(s.floors_[1], {80, 78, 76}, 21);
-    make_ceiling(s.ceiling_, {55, 62, 88}, 30);
+    make_circuit(s.walls_[12], {50, 190, 150}, 12);
+    make_hazard(s.walls_[13], 13);
+    make_moss(s.walls_[14], {120, 120, 112}, 14);
+    make_rust(s.walls_[15], {120, 125, 135}, 15);
+    make_lava(s.walls_[16], 16);
+    make_glass(s.walls_[17], {130, 200, 240}, 17);
+    if (theme == "foundry") {
+        make_grate(s.floors_[0], {105, 95, 90}, 22);
+        make_grate(s.floors_[1], {80, 72, 68}, 23);
+        make_pipes_ceiling(s.ceiling_, {48, 40, 40}, 31);
+    } else if (theme == "cavern") {
+        make_rock(s.floors_[0], {95, 85, 75}, 24);
+        make_rock(s.floors_[1], {75, 68, 60}, 25);
+        make_rock(s.ceiling_, {48, 44, 46}, 32);
+    } else if (theme == "lab") {
+        make_tiles(s.floors_[0], {205, 210, 215}, 26);
+        make_tiles(s.floors_[1], {170, 178, 188}, 27);
+        make_ceiling(s.ceiling_, {150, 160, 175}, 33);
+    } else {
+        make_floor(s.floors_[0], {105, 100, 95}, 20);
+        make_floor(s.floors_[1], {80, 78, 76}, 21);
+        make_ceiling(s.ceiling_, {55, 62, 88}, 30);
+    }
     return s;
 }
 

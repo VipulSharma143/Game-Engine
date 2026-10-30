@@ -85,16 +85,23 @@ TEST(input_edges_clear_but_held_input_stays_and_carried_edges_add_up) {
     in.forward = 1.0; in.fire = true;                       // held: not an edge
     in.use = in.edit_select = in.edit_save = true;
     in.edit_palette = 2; in.edit_rotate = -1; in.look = 4.0;
+    in.weapon_slot = 3; in.weapon_cycle = 2;
     ge::InputState carried;
     carried.add_edges(in);
     carried.add_edges(in);                                   // two frames without a step
     CHECK(carried.use && carried.edit_select && carried.edit_save && !carried.edit_insert);
     CHECK_EQ(carried.edit_palette, 4);
     CHECK_EQ(carried.edit_rotate, -2);
+    CHECK_EQ(carried.weapon_slot, 3);
+    CHECK_EQ(carried.weapon_cycle, 4);
+    ge::InputState later; later.weapon_slot = 1;
+    carried.add_edges(later);
+    CHECK_EQ(carried.weapon_slot, 1);                        // the latest choice wins
     CHECK_NEAR(carried.look, 8.0, 0.0);
     CHECK_NEAR(carried.forward, 0.0, 0.0);                   // levels are not carried over
     in.clear_edges();
     CHECK(!in.use && !in.edit_select && !in.edit_save && in.edit_palette == 0 && in.edit_rotate == 0);
+    CHECK(in.weapon_slot == 0 && in.weapon_cycle == 0);
     CHECK_NEAR(in.look, 0.0, 0.0);
     CHECK_NEAR(in.forward, 1.0, 0.0);
     CHECK(in.fire);

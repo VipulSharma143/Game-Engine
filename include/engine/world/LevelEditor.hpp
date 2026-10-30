@@ -16,11 +16,15 @@
 
 namespace ge {
 
-enum class ObjectKind : std::uint8_t { None, Wall, Door, LockedDoor, Target, Enemy, Health, Ammo, Key, PlayerStart };
+// Enemy is the grunt; the other enemy kinds and the weapon pickups come after the original kinds.
+enum class ObjectKind : std::uint8_t {
+    None, Wall, Door, LockedDoor, Target, Enemy, Health, Ammo, Key, PlayerStart,
+    Gunner, Brute, Skitter, Shotgun, Chaingun, Launcher
+};
 
 struct EditObject {
     ObjectKind kind = ObjectKind::None;
-    std::uint8_t wall_id = 0;  // 1-9, only meaningful for Wall
+    std::uint8_t wall_id = 0;  // 1-9 or 12-17, only meaningful for Wall
     friend constexpr bool operator==(EditObject a, EditObject b) noexcept { return a.kind == b.kind && a.wall_id == b.wall_id; }
 };
 

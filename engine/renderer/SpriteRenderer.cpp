@@ -49,14 +49,41 @@ int draw_sprites(const Camera& cam, std::span<const double> depth, std::span<con
 
     int drawn = 0;
     for (const Item& it : items) {
-        const double px = it.s->size * h / it.p.depth;  // sprite diameter in pixels
+        const double px = it.s->size * h / it.p.depth;  // sprite diameter (or picture height) in pixels
         if (px < 1.0) continue;
         const double r = px * 0.5;
+        const double fog = clamp(1.0 / (1.0 + it.p.depth * it.p.depth * 0.02), 0.15, 1.0) * it.s->light;
+        const double lift = it.s->z * h / it.p.depth;  // pixels above the usual position
+        bool any = false;
+
+        if (it.s->image && !it.s->image->empty()) {
+            // A picture: nearest-neighbour sampled, standing on the floor line, transparent pixels skipped.
+            const SpriteImage& img = *it.s->image;
+            const double half_w = r * static_cast<double>(img.width) / static_cast<double>(img.height);
+            const double floor_y = h * 0.5 + 0.5 * h / it.p.depth;
+            const double top = floor_y - px - lift;
+            const int x0 = std::max(static_cast<int>(std::floor(it.p.screen_x - half_w)), 0);
+            const int x1 = std::min(static_cast<int>(std::ceil(it.p.screen_x + half_w)), w);
+            const int y0 = std::max(static_cast<int>(std::floor(top)), 0);
+            const int y1 = std::min(static_cast<int>(std::ceil(top + px)), h);
+            for (int x = x0; x < x1; ++x) {
+                if (it.p.depth >= depth[static_cast<std::size_t>(x)]) continue;
+                const int ix = std::min(static_cast<int>((x + 0.5 - (it.p.screen_x - half_w)) / (2.0 * half_w) * img.width), img.width - 1);
+                for (int y = y0; y < y1; ++y) {
+                    const int iy = std::min(static_cast<int>((y + 0.5 - top) / px * img.height), img.height - 1);
+                    const std::uint32_t c = img.at(ix, iy);
+                    if ((c >> 24) < 128u) continue;
+                    target.set_pixel(x, y, shade(c, fog, it.s->flash));
+                    any = true;
+                }
+            }
+            if (any) ++drawn;
+            continue;
+        }
+
         const int x0 = static_cast<int>(std::floor(it.p.screen_x - r));
         const int x1 = static_cast<int>(std::ceil(it.p.screen_x + r));
-        const double cy = h * 0.5;
-        const double fog = clamp(1.0 / (1.0 + it.p.depth * it.p.depth * 0.02), 0.15, 1.0);
-        bool any = false;
+        const double cy = h * 0.5 - lift;
         for (int x = std::max(x0, 0); x < std::min(x1, w); ++x) {
             if (it.p.depth >= depth[static_cast<std::size_t>(x)]) continue;  // hidden behind a wall
             const double u = (x + 0.5 - it.p.screen_x) / r;                   // -1..1 across

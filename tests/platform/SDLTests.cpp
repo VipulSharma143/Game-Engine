@@ -136,6 +136,28 @@ void push_wheel(float y) {
 }
 }  // namespace
 
+TEST(sdl_platform_maps_number_keys_to_weapon_slots_and_the_latest_press_wins) {
+    use_dummy_driver();
+    auto platform = ge::make_window_platform();
+    ge::EngineConfig cfg;
+    cfg.capture_mouse = false;
+    CHECK(platform->init(cfg).ok);
+    push_key(SDL_SCANCODE_2);
+    ge::InputState in;
+    platform->poll_input(in);
+    CHECK_EQ(in.weapon_slot, 2);
+    push_key(SDL_SCANCODE_1);
+    push_key(SDL_SCANCODE_4);
+    push_key(SDL_SCANCODE_9);
+    ge::InputState several;
+    platform->poll_input(several);
+    CHECK_EQ(several.weapon_slot, 9);     // the last key of the frame
+    ge::InputState none;
+    platform->poll_input(none);
+    CHECK_EQ(none.weapon_slot, 0);
+    platform->shutdown();
+}
+
 TEST(sdl_platform_maps_editing_keys_clicks_and_wheel) {
     use_dummy_driver();
     auto platform = ge::make_window_platform();
@@ -167,6 +189,7 @@ TEST(sdl_platform_maps_editing_keys_clicks_and_wheel) {
     ge::InputState wheel;
     platform->poll_input(wheel);
     CHECK_EQ(wheel.edit_palette, 1);
+    CHECK_EQ(wheel.weapon_cycle, 1);      // the same wheel cycles weapons in the game
     push_wheel(0.4f);                     // the third 0.4 completes a notch (3 x 0.4 = 1.2)
     ge::InputState later;
     platform->poll_input(later);

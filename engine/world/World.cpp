@@ -37,6 +37,7 @@ std::optional<Level> parse_level(std::span<const std::string_view> rows, std::st
             std::uint8_t id = 0;
             if (c == '#') id = 1;
             else if (c >= '1' && c <= '9') id = static_cast<std::uint8_t>(c - '0');
+            else if (c >= 'a' && c <= 'a' + (kLastWallId - kFirstExtraWallId)) id = static_cast<std::uint8_t>(kFirstExtraWallId + (c - 'a'));
             else if (c == 'P') {
                 if (spawn_found) {
                     error = "more than one player spawn";
@@ -46,10 +47,12 @@ std::optional<Level> parse_level(std::span<const std::string_view> rows, std::st
                 level.spawn = {static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5};
             } else if (c == 'T') {
                 level.target_spawns.push_back({static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5});
-            } else if (c == 'E') {
-                level.enemy_spawns.push_back({static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5});
-            } else if (c == 'H' || c == 'A' || c == 'K') {
-                const PickupKind kind = c == 'H' ? PickupKind::Health : c == 'A' ? PickupKind::Ammo : PickupKind::Key;
+            } else if (c == 'E' || c == 'G' || c == 'B' || c == 'F') {
+                const EnemyKind kind = c == 'E' ? EnemyKind::Grunt : c == 'G' ? EnemyKind::Gunner : c == 'B' ? EnemyKind::Brute : EnemyKind::Skitter;
+                level.enemy_spawns.push_back({{static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5}, kind});
+            } else if (c == 'H' || c == 'A' || c == 'K' || c == 'S' || c == 'C' || c == 'R') {
+                const PickupKind kind = c == 'H' ? PickupKind::Health : c == 'A' ? PickupKind::Ammo : c == 'K' ? PickupKind::Key
+                                        : c == 'S' ? PickupKind::Shotgun : c == 'C' ? PickupKind::Chaingun : PickupKind::Launcher;
                 level.pickups.push_back({kind, {static_cast<double>(x) + 0.5, static_cast<double>(y) + 0.5}});
             } else if (c == 'D') {
                 id = kDoorId;

@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string_view>
 #include <vector>
 
 #include "engine/renderer/Framebuffer.hpp"
@@ -30,18 +31,19 @@ private:
     std::vector<std::uint32_t> pixels_;
 };
 
-// Wall textures indexed by wall id (1-9 walls, 10 door, 11 locked door), two floor variants (laid out as a checkerboard)
-// and one ceiling texture.
+// Wall textures indexed by wall id (1-9 walls, 10 door, 11 locked door, 12-17 extra walls), two floor variants (laid
+// out as a checkerboard) and one ceiling texture. `theme` picks the floor and ceiling ("default", "foundry", "cavern"
+// or "lab"; an unknown name gives the default); the walls are the same in every theme.
 class TextureSet {
 public:
-    static TextureSet make_procedural();
+    static TextureSet make_procedural(std::string_view theme = "default");
 
     const Texture& wall(std::uint8_t id) const noexcept { return walls_[id < walls_.size() ? id : 0]; }
     const Texture& floor(int variant) const noexcept { return floors_[static_cast<std::size_t>(variant & 1)]; }
     const Texture& ceiling() const noexcept { return ceiling_; }
 
 private:
-    std::array<Texture, 12> walls_;  // index 0 is a magenta "missing" texture; 10 = door, 11 = locked door
+    std::array<Texture, 18> walls_;  // index 0 is a magenta "missing" texture; 10 = door, 11 = locked door
     std::array<Texture, 2> floors_;
     Texture ceiling_;
 };

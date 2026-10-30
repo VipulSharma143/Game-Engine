@@ -23,7 +23,17 @@ GameAudio::GameAudio(GameApplication& app, ge::AudioMixer& mixer, const ge::Soun
         unsubscribe_.push_back([&bus, token] { bus.unsubscribe<E>(token); });
     };
 
-    on(ShotFired{}, [this](const ShotFired&) { mixer_.play(bank_.shot, 0.9f); });
+    on(ShotFired{}, [this](const ShotFired& e) {
+        switch (static_cast<WeaponId>(e.weapon)) {
+            case WeaponId::Shotgun: mixer_.play(bank_.shotgun, 0.95f); break;
+            case WeaponId::Chaingun: mixer_.play(bank_.chaingun, 0.7f); break;
+            case WeaponId::Launcher: mixer_.play(bank_.rocket, 0.9f); break;
+            default: mixer_.play(bank_.shot, 0.9f); break;
+        }
+    });
+    on(EnemyShot{}, [this](const EnemyShot& e) { mixer_.play(bank_.enemy_shot, 0.7f, audio_pan_for(app_.camera(), e.position)); });
+    on(Explosion{}, [this](const Explosion& e) { mixer_.play(bank_.explosion, 1.0f, audio_pan_for(app_.camera(), e.position)); });
+    on(WeaponSwitched{}, [this](const WeaponSwitched&) { mixer_.play(bank_.switch_weapon, 0.6f); });
     on(TargetHit{}, [this](const TargetHit& e) { mixer_.play(bank_.hit, 0.8f, audio_pan_for(app_.camera(), e.position)); });
     on(TargetDestroyed{}, [this](const TargetDestroyed& e) { mixer_.play(bank_.kill, 0.9f, audio_pan_for(app_.camera(), e.position)); });
     on(ReloadStarted{}, [this](const ReloadStarted&) { mixer_.play(bank_.reload, 0.7f); });

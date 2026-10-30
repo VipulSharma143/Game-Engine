@@ -31,7 +31,7 @@ std::optional<Level> load_level_file(const std::filesystem::path& path, std::str
 
 // The inverse of parse_level_text: parsing the result gives back an identical level. Fails (with a message) for a
 // level the format cannot hold: border not solid, no or several player spawns, two objects in one cell, an object
-// away from its cell centre, a wall id above 11, a size outside 3..128. Comments, name, angle and waves are kept.
+// away from its cell centre, a wall id above 17, an unknown theme, a size outside 3..128. Comments, name, angle and waves are kept.
 std::optional<std::string> serialize_level_text(const Level& level, std::string& error);
 // Serializes, writes to "<path>.tmp" and renames it over `path`, so a failed save never leaves a half-written level.
 bool save_level_file(const std::filesystem::path& path, const Level& level, std::string& error);

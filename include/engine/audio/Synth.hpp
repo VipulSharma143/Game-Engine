@@ -19,6 +19,12 @@ struct SoundBank {
     Sound pickup;      // collect an item
     Sound door;        // door opens
     Sound locked;      // door is locked
+    Sound shotgun;     // heavy low boom with a long noise tail
+    Sound chaingun;    // short sharp crack, played many times a second
+    Sound rocket;      // launch whoosh: noise over a rising-then-falling tone
+    Sound explosion;   // long rumble with a hard noise burst at the start
+    Sound enemy_shot;  // an enemy's bolt: a falling electric zap
+    Sound switch_weapon;  // two quick mechanical clicks
 
     static SoundBank make(int sample_rate = 44100);
 };

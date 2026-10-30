@@ -1,0 +1,30 @@
+; A maze of mossy tunnels where skitters swarm and brutes lumber around corners.
+; The shotgun is close to the start; the rocket launcher is deep in the maze.
+name: Moss Catacombs
+angle: 0
+waves: 5
+theme: cavern
+map:
+ccccccccccccccccccccccccccccccccc
+cPc.............c.H.......c.....c
+c.cc.ccee.cec.eHc.ccc.ccc.ccc.c.c
+c.c...S...A.c...c.............c.c
+c...ccc.ccc.cFceccccccc.c.e.ccc.c
+c...c.c.....c.c.........c...c...c
+ccc.c.c.ccc.c.ccc.ccc.ccc.ccc.ccc
+c...........c.....c..Fc.......c.c
+c.ccc.ccccc.ccccc.c.c.c.cccccec.c
+c.cEc.c...c.c.......c...c...c...c
+c.....c.c.cec.......c.ccc.c.c.ccc
+c...c...c...c...e.....c....Bc...c
+ccc.ccccccc.e.......c.c.ccc.cc..c
+c.c...c.............c...c.c.c...c
+c.ccc.c.cc.cc.ceccecceccc.c....cc
+c....H..c....A......c...........c
+c.e.......c.ccc.e.ccc.cc..A...c.c
+c.c.....c.........c...c.......c.c
+c.c.....cBecccc.cR..ccc.......c.c
+c.c.....c.......................c
+c.c...ccc.c.cce.ccecc.ccc.c.c.c.c
+c...e.......c.......c.........c.c
+ccccccccccccccccccccccccccccccccc

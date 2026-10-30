@@ -5,6 +5,7 @@
 
 #include "engine/physics/Collision.hpp"
 #include "engine/renderer/Raycaster.hpp"
+#include "game/Definitions.hpp"
 
 namespace game {
 
@@ -78,6 +79,25 @@ ge::Vec2 DistanceField::direction_from(ge::Vec2 p) const noexcept {
     return len < 1e-9 ? ge::Vec2{} : ge::Vec2{v.x / len, v.y / len};
 }
 
+Enemy make_enemy(ge::EnemyKind kind) noexcept {
+    const EnemyDef& d = enemy_def(kind);
+    Enemy e;
+    e.kind = kind;
+    e.speed = d.speed;
+    e.sight = d.sight;
+    e.attack_range = d.melee_range;
+    e.attack_interval = d.melee_interval;
+    e.damage = d.melee_damage;
+    e.radius = d.radius;
+    e.ranged = d.ranged;
+    e.min_range = d.min_range;
+    e.max_range = d.max_range;
+    e.shoot_interval = d.shoot_interval;
+    e.shot_damage = d.shot_damage;
+    e.shot_speed = d.shot_speed;
+    return e;
+}
+
 EnemyDecision enemy_think(Enemy& e, ge::Vec2 pos, ge::Vec2 player, const ge::GridMap& map, const DistanceField& field,
                           bool alerted, double dt) noexcept {
     EnemyDecision out;
@@ -85,6 +105,34 @@ EnemyDecision enemy_think(Enemy& e, ge::Vec2 pos, ge::Vec2 player, const ge::Gri
     const ge::Vec2 to = player - pos;
     const double dist = std::sqrt(to.x * to.x + to.y * to.y);
     const bool los = line_of_sight(map, pos, player);
+
+    if (e.ranged) {
+        // Gunner: wake up like everyone else, then walk until the player is in range with a clear line, stand
+        // there sidestepping and firing, and back away if the player closes in.
+        e.shoot_cooldown = e.shoot_cooldown > dt ? e.shoot_cooldown - dt : 0.0;
+        e.strafe_timer -= dt;
+        if (e.strafe_timer <= 0.0) { e.strafe_sign = -e.strafe_sign; e.strafe_timer = 1.1; }
+        if (e.state == EnemyState::Idle && ((los && dist <= e.sight) || alerted)) e.state = EnemyState::Chase;
+        if (e.state != EnemyState::Idle) e.state = (los && dist <= e.max_range) ? EnemyState::Attack : EnemyState::Chase;
+
+        if (e.state == EnemyState::Chase) {
+            ge::Vec2 dir{};
+            if (los && dist < 6.0 && dist > 1e-9) dir = {to.x / dist, to.y / dist};
+            else dir = field.direction_from(pos);
+            if (dir.x == 0.0 && dir.y == 0.0 && dist > 1e-9) dir = {to.x / dist, to.y / dist};
+            out.move = {dir.x * e.speed * dt, dir.y * e.speed * dt};
+        } else if (e.state == EnemyState::Attack && dist > 1e-9) {
+            const ge::Vec2 toward{to.x / dist, to.y / dist};
+            if (dist < e.min_range) out.move = {-toward.x * e.speed * dt, -toward.y * e.speed * dt};  // back away
+            else out.move = {-toward.y * e.strafe_sign * e.speed * 0.5 * dt, toward.x * e.strafe_sign * e.speed * 0.5 * dt};
+            if (e.shoot_cooldown <= 0.0) {
+                out.fire = true;
+                out.aim = toward;
+                e.shoot_cooldown = e.shoot_interval;
+            }
+        }
+        return out;
+    }
 
     if (e.state == EnemyState::Idle && ((los && dist <= e.sight) || alerted)) e.state = EnemyState::Chase;
     if (e.state == EnemyState::Chase && los && dist <= e.attack_range) e.state = EnemyState::Attack;

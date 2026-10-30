@@ -95,7 +95,7 @@ CrosshairTarget crosshair_target(const Level& level, const Camera& camera, doubl
     };
     consider(level.spawn);
     for (const Vec2& p : level.target_spawns) consider(p);
-    for (const Vec2& p : level.enemy_spawns) consider(p);
+    for (const EnemySpawn& p : level.enemy_spawns) consider(p.position);
     for (const PickupSpawn& p : level.pickups) consider(p.position);
 
     const double t = clamp(std::min(reach, wall_distance - 0.01), 0.0, reach);

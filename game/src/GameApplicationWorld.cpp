@@ -10,7 +10,6 @@
 namespace game {
 
 namespace {
-constexpr int kEnemyHealth = 60;           // two shots at 34 damage
 constexpr double kPickupRadius = 0.55;
 constexpr int kHealthPackAmount = 25;
 constexpr double kUseDistance = 1.6;       // how far away a door can be opened
@@ -22,14 +21,15 @@ void GameApplication::spawn_level_content() {
 
 void GameApplication::spawn_enemies(int wave) {
     const std::size_t count = std::min(level_.enemy_spawns.size(), static_cast<std::size_t>(wave));
-    for (std::size_t i = 0; i < count; ++i) place_enemy(level_.enemy_spawns[i]);
+    for (std::size_t i = 0; i < count; ++i) place_enemy(level_.enemy_spawns[i].position, level_.enemy_spawns[i].kind);
 }
 
-void GameApplication::place_enemy(ge::Vec2 position) {
+void GameApplication::place_enemy(ge::Vec2 position, ge::EnemyKind kind) {
     const ge::Entity e = entities_.create();
-    Enemy brain;
+    const Enemy brain = make_enemy(kind);
+    const int health = enemy_def(kind).health;
     entities_.add(e, ge::Transform{position, 0.0});
-    entities_.add(e, ge::Health{kEnemyHealth, kEnemyHealth});
+    entities_.add(e, ge::Health{health, health});
     entities_.add(e, ge::Collider{brain.radius});
     entities_.add(e, brain);
     enemies_.push_back(e);
@@ -91,6 +91,7 @@ void GameApplication::update_enemies(double dt) {
         const EnemyDecision d = enemy_think(*en, t->position, player_.position, level_.map, field_, alerted, dt);
         t->position = slide_move(level_.map, t->position, d.move, en->radius);
         if (d.attack) damage_player(en->damage);
+        if (d.fire) spawn_enemy_bolt(i, d.aim);
         if (state_ != GameState::Playing) return;
     }
 
@@ -99,14 +100,15 @@ void GameApplication::update_enemies(double dt) {
         for (std::size_t j = i + 1; j < enemies_.size(); ++j) {
             auto* a = entities_.get<ge::Transform>(enemies_[i]);
             auto* b = entities_.get<ge::Transform>(enemies_[j]);
+            const double ra = entities_.get<Enemy>(enemies_[i])->radius, rb = entities_.get<Enemy>(enemies_[j])->radius;
             const double dx = b->position.x - a->position.x, dy = b->position.y - a->position.y;
             const double dist = std::sqrt(dx * dx + dy * dy);
-            const double min_dist = 0.55;
+            const double min_dist = std::max(0.55, ra + rb + 0.05);
             if (dist >= min_dist) continue;
             const double nx = dist > 1e-6 ? dx / dist : 1.0, ny = dist > 1e-6 ? dy / dist : 0.0;
             const double push = (min_dist - dist) * 0.5;
-            a->position = slide_move(level_.map, a->position, {-nx * push, -ny * push}, 0.3);
-            b->position = slide_move(level_.map, b->position, {nx * push, ny * push}, 0.3);
+            a->position = slide_move(level_.map, a->position, {-nx * push, -ny * push}, ra);
+            b->position = slide_move(level_.map, b->position, {nx * push, ny * push}, rb);
         }
 }
 
@@ -125,12 +127,35 @@ void GameApplication::update_pickups() {
                     }
                     break;
                 case ge::PickupKind::Ammo:
-                    if (weapon_.ammo < weapon_.magazine || weapon_.reloading()) {
-                        weapon_.ammo = weapon_.magazine;
-                        weapon_.reload_left = 0.0;
+                    // Tops up every weapon you own: the pistol's magazine, spare rounds for the rest.
+                    for (int w = 0; w < kWeaponCount; ++w) {
+                        if (!owns_weapon(static_cast<WeaponId>(w))) continue;
+                        Weapon& weapon = weapons_[static_cast<std::size_t>(w)];
+                        const WeaponDef& def = weapon_def(static_cast<WeaponId>(w));
+                        if (weapon.reserve < 0) {
+                            if (weapon.ammo < weapon.magazine || weapon.reloading()) {
+                                weapon.ammo = weapon.magazine;
+                                weapon.reload_left = 0.0;
+                                take = true;
+                            }
+                        } else if (weapon.reserve < def.max_reserve) {
+                            weapon.reserve = std::min(def.max_reserve, weapon.reserve + def.ammo_pickup);
+                            take = true;
+                        }
+                    }
+                    break;
+                case ge::PickupKind::Shotgun:
+                case ge::PickupKind::Chaingun:
+                case ge::PickupKind::Launcher: {
+                    const WeaponId id = pk->kind == ge::PickupKind::Shotgun ? WeaponId::Shotgun
+                                        : pk->kind == ge::PickupKind::Chaingun ? WeaponId::Chaingun : WeaponId::Launcher;
+                    const Weapon& have = weapons_[static_cast<std::size_t>(id)];
+                    if (!owns_weapon(id) || have.reserve < weapon_def(id).max_reserve) {  // a full stack is left for later
+                        give_weapon(id);
                         take = true;
                     }
                     break;
+                }
                 case ge::PickupKind::Key:
                     ++player_.keys;
                     take = true;

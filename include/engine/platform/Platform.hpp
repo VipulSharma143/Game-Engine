@@ -23,6 +23,10 @@ struct InputState {
     bool menu_quit = false;     // pressed this frame (edge): quit from a menu
     bool quit = false;
 
+    // Weapons (FunkShot). Edges like `use`; the SDL platform maps keys 1-9 and the mouse wheel to them.
+    int weapon_slot = 0;         // 1-9: select that weapon slot (0 = none)
+    int weapon_cycle = 0;        // wheel notches this frame: positive = next weapon, negative = previous
+
     // Level editing (SORTED Viewer). Edges like `use`. The SDL platform maps them to fixed keys and mouse
     // buttons (they are not in settings.ini); see docs/USING_SORTED.md.
     bool edit_toggle = false;    // F2: edit mode on/off
@@ -41,6 +45,7 @@ struct InputState {
     void clear_edges() noexcept {
         look = 0.0;
         use = reload = toggle_debug = pause = confirm = menu_quit = false;
+        weapon_slot = weapon_cycle = 0;
         edit_toggle = edit_select = edit_insert = edit_remove = edit_move = false;
         edit_change = edit_deselect = edit_save = edit_load = false;
         edit_palette = edit_rotate = 0;
@@ -50,6 +55,8 @@ struct InputState {
         look += other.look;
         use |= other.use; reload |= other.reload; toggle_debug |= other.toggle_debug;
         pause |= other.pause; confirm |= other.confirm; menu_quit |= other.menu_quit;
+        if (other.weapon_slot != 0) weapon_slot = other.weapon_slot;  // the latest choice wins
+        weapon_cycle += other.weapon_cycle;
         edit_toggle |= other.edit_toggle; edit_select |= other.edit_select; edit_insert |= other.edit_insert;
         edit_remove |= other.edit_remove; edit_move |= other.edit_move; edit_change |= other.edit_change;
         edit_deselect |= other.edit_deselect; edit_save |= other.edit_save; edit_load |= other.edit_load;

@@ -75,7 +75,7 @@ Every behaviour change needs a test in `tests/` (harness: `tests/support/TestFra
 
 ## Implemented vs planned
 
-Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum) with fallbacks, tests, benchmark tool. Also implemented: SDL3 window and input, textured rendering, enemies, weapons, pickups, doors, audio, text levels, in-Viewer level editing (`F2`: select, insert, remove, move, change, rotate the player start, save, reload), `.deb` and Setup.exe packaging. Not verified locally: the MSVC build, the Windows installer (CI only), Clang. **Planned (do not describe as working):** JSON levels/prefabs, a standalone editor tool, scripting, multithreading.
+Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum) with fallbacks, tests, benchmark tool. Also implemented: SDL3 window and input, textured rendering with level themes, four enemy kinds (one ranged), four weapons (shotgun, chaingun, rocket launcher), projectiles with blast damage, pixel-art sprites, particles, pickups, doors, audio, text levels, in-Viewer level editing (`F2`: select, insert, remove, move, change, rotate the player start, save, reload), `.deb` and Setup.exe packaging. Not verified locally: the MSVC build, the Windows installer (CI only), Clang. **Planned (do not describe as working):** JSON levels/prefabs, a standalone editor tool, scripting, multithreading.
 
 Do not claim a feature exists because a file or directory exists: empty directories under `assets/`, `tools/` and `engine/{audio,resources}` are reserved placeholders.
 

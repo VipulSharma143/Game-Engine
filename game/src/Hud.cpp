@@ -22,18 +22,73 @@ void fill_disc(ge::Framebuffer& fb, int cx, int cy, int r, std::uint32_t c) {
 
 }  // namespace
 
-void draw_weapon_view(ge::Framebuffer& fb, double flash, bool reloading) {
+void draw_weapon_view(ge::Framebuffer& fb, double flash, bool reloading, int weapon) {
     const int w = fb.width(), h = fb.height();
     const int cx = w / 2;
-    const int kick = static_cast<int>(flash * 6.0) + (reloading ? 14 : 0);
-    const int base = h + kick;
-    fill_rect(fb, cx - 14, base - 22, cx + 14, h, ge::pack_rgb(70, 72, 80));       // body
-    fill_rect(fb, cx - 14, base - 22, cx + 14, base - 20, ge::pack_rgb(120, 124, 135));  // top highlight
-    fill_rect(fb, cx - 4, base - 40, cx + 4, base - 22, ge::pack_rgb(55, 57, 64));  // barrel
-    fill_rect(fb, cx - 4, base - 40, cx - 2, base - 22, ge::pack_rgb(100, 104, 114));
-    if (flash > 0.6) {  // muzzle flash
-        fill_disc(fb, cx, base - 44, 7, ge::pack_rgb(255, 210, 90));
-        fill_disc(fb, cx, base - 44, 3, ge::pack_rgb(255, 255, 220));
+    const std::uint32_t metal = ge::pack_rgb(70, 72, 80), light = ge::pack_rgb(120, 124, 135), dark = ge::pack_rgb(55, 57, 64);
+    const std::uint32_t flash_outer = ge::pack_rgb(255, 210, 90), flash_inner = ge::pack_rgb(255, 255, 220);
+    switch (weapon) {
+        case 1: {  // shotgun: two fat barrels over a wooden pump grip
+            const int kick = static_cast<int>(flash * 12.0) + (reloading ? 18 : 0);
+            const int base = h + kick;
+            fill_rect(fb, cx - 18, base - 22, cx + 18, h, ge::pack_rgb(120, 78, 42));            // wooden stock
+            fill_rect(fb, cx - 18, base - 22, cx + 18, base - 20, ge::pack_rgb(170, 120, 70));
+            fill_rect(fb, cx - 14, base - 46, cx - 2, base - 22, dark);                           // left barrel
+            fill_rect(fb, cx + 2, base - 46, cx + 14, base - 22, dark);                           // right barrel
+            fill_rect(fb, cx - 14, base - 46, cx - 12, base - 22, light);
+            fill_rect(fb, cx + 2, base - 46, cx + 4, base - 22, light);
+            fill_rect(fb, cx - 16, base - 32, cx + 16, base - 26, metal);                         // pump band
+            if (flash > 0.4) {
+                fill_disc(fb, cx - 8, base - 50, 10, flash_outer);
+                fill_disc(fb, cx + 8, base - 50, 10, flash_outer);
+                fill_disc(fb, cx, base - 52, 8, flash_inner);
+            }
+            break;
+        }
+        case 2: {  // chaingun: a bundle of barrels that shakes while firing
+            const int shake = flash > 0.3 ? static_cast<int>(flash * 4.0) % 2 : 0;
+            const int base = h + (reloading ? 18 : 0);
+            fill_rect(fb, cx - 16, base - 20, cx + 16, h, metal);
+            fill_rect(fb, cx - 16, base - 20, cx + 16, base - 18, light);
+            for (int b = 0; b < 3; ++b) {
+                const int bx = cx - 12 + b * 9 + shake;
+                fill_rect(fb, bx, base - 44, bx + 6, base - 20, b % 2 ? dark : ge::pack_rgb(90, 92, 102));
+                fill_rect(fb, bx, base - 44, bx + 2, base - 20, light);
+            }
+            fill_rect(fb, cx - 16, base - 34, cx + 16, base - 30, ge::pack_rgb(200, 120, 40));    // orange ring
+            if (flash > 0.3) {
+                fill_disc(fb, cx + shake * 3 - 3, base - 48, 5, flash_outer);
+                fill_disc(fb, cx + shake * 3 + 3, base - 49, 3, flash_inner);
+            }
+            break;
+        }
+        case 3: {  // rocket launcher: a wide tube on the shoulder
+            const int kick = static_cast<int>(flash * 8.0) + (reloading ? 16 : 0);
+            const int base = h + kick;
+            fill_rect(fb, cx - 20, base - 36, cx + 20, h, ge::pack_rgb(60, 80, 62));              // green tube
+            fill_rect(fb, cx - 20, base - 36, cx + 20, base - 33, ge::pack_rgb(110, 140, 112));
+            fill_rect(fb, cx - 16, base - 44, cx + 16, base - 36, dark);                          // muzzle ring
+            fill_rect(fb, cx - 10, base - 44, cx + 10, base - 40, ge::pack_rgb(20, 20, 24));      // dark opening
+            fill_rect(fb, cx - 20, base - 20, cx + 20, base - 17, ge::pack_rgb(200, 60, 50));     // red band
+            if (flash > 0.5) {
+                fill_disc(fb, cx, base - 48, 13, ge::pack_rgb(255, 150, 50));
+                fill_disc(fb, cx, base - 48, 7, flash_inner);
+            }
+            break;
+        }
+        default: {  // pistol
+            const int kick = static_cast<int>(flash * 6.0) + (reloading ? 14 : 0);
+            const int base = h + kick;
+            fill_rect(fb, cx - 14, base - 22, cx + 14, h, metal);                                  // body
+            fill_rect(fb, cx - 14, base - 22, cx + 14, base - 20, light);                          // top highlight
+            fill_rect(fb, cx - 4, base - 40, cx + 4, base - 22, dark);                             // barrel
+            fill_rect(fb, cx - 4, base - 40, cx - 2, base - 22, ge::pack_rgb(100, 104, 114));
+            if (flash > 0.6) {  // muzzle flash
+                fill_disc(fb, cx, base - 44, 7, flash_outer);
+                fill_disc(fb, cx, base - 44, 3, flash_inner);
+            }
+            break;
+        }
     }
 }
 
@@ -80,14 +135,28 @@ void draw_hud(ge::Framebuffer& fb, const HudData& d) {
         ge::draw_text_shadowed(fb, (w - ge::text_width(buf)) / 2, 4, buf, ge::pack_rgb(110, 180, 255));
     }
 
+    // Weapon bar: slot numbers 1-4, owned ones lit, the one in hand highlighted.
+    for (int i = 0; i < 4; ++i) {
+        const bool owned = ((d.owned_weapons >> static_cast<unsigned>(i)) & 1u) != 0;
+        const bool current = i == d.weapon;
+        const int x = 4 + i * 14;
+        fill_rect(fb, x, h - 58, x + 12, h - 46, current ? yellow : owned ? ge::pack_rgb(90, 96, 110) : ge::pack_rgb(35, 36, 42));
+        char digit[2] = {static_cast<char>('1' + i), 0};
+        ge::draw_text(fb, x + 4, h - 56, digit, current ? ge::pack_rgb(20, 20, 20) : owned ? white : ge::pack_rgb(80, 82, 90));
+    }
+    ge::draw_text_shadowed(fb, 4, h - 44, d.weapon_name, yellow);
+
     if (d.reloading) {
         ge::draw_text_shadowed(fb, 4, h - 12, "RELOADING", red);
         const int bar = static_cast<int>(d.reload_fraction * 40.0);
         fill_rect(fb, 4, h - 18, 4 + 40, h - 15, ge::pack_rgb(40, 40, 40));
         fill_rect(fb, 4, h - 18, 4 + bar, h - 15, yellow);
-    } else {
+    } else if (d.reserve < 0) {
         std::snprintf(buf, sizeof buf, "AMMO %02d/%02d", d.ammo, d.magazine);
         ge::draw_text_shadowed(fb, 4, h - 12, buf, d.ammo <= 3 ? red : white);
+    } else {
+        std::snprintf(buf, sizeof buf, "AMMO %02d  RESERVE %d", d.ammo, d.reserve);
+        ge::draw_text_shadowed(fb, 4, h - 12, buf, d.ammo + d.reserve <= 3 ? red : white);
     }
 
     if (d.between_waves) {
@@ -176,6 +245,12 @@ void tint_red(ge::Framebuffer& fb, double amount) {
     const unsigned add = static_cast<unsigned>(std::clamp(amount, 0.0, 1.0) * 110.0);
     for (std::uint32_t& px : fb.pixels())
         px = ge::pack_rgb(std::min(255u, ge::red_of(px) + add), ge::green_of(px) * (200u - add / 2) / 200u, ge::blue_of(px) * (200u - add / 2) / 200u);
+}
+
+void tint_warm(ge::Framebuffer& fb, double amount) {
+    const unsigned a = static_cast<unsigned>(std::clamp(amount, 0.0, 1.0) * 90.0);
+    for (std::uint32_t& px : fb.pixels())
+        px = ge::pack_rgb(std::min(255u, ge::red_of(px) + a), std::min(255u, ge::green_of(px) + a * 6 / 10), ge::blue_of(px) * (200u - a / 2) / 200u);
 }
 
 }  // namespace game

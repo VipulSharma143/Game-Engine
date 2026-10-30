@@ -177,6 +177,75 @@ SoundBank SoundBank::make(int rate) {
         normalize_peak(b.locked, 0.55f);
     }
 
+    b.shotgun = make_sound("shotgun", rate, 0.5);
+    {
+        Noise n(0x5107u);
+        add_noise_burst(b.shotgun, n, 0.0, 0.45, 0.9, 11.0);
+        double phase = 0.0;
+        for (std::size_t i = 0; i < b.shotgun.samples.size(); ++i) {
+            const double t = static_cast<double>(i) / rate;
+            phase += kTwoPi * (45.0 + 150.0 * std::exp(-t * 22.0)) / rate;  // deep falling thump
+            b.shotgun.samples[i] += static_cast<float>(0.9 * std::sin(phase) * std::exp(-t * 9.0) * std::min(1.0, t / 0.001) * std::min(1.0, (0.5 - t) / 0.02));
+        }
+        normalize_peak(b.shotgun, 0.95f);
+    }
+
+    b.chaingun = make_sound("chaingun", rate, 0.09);
+    {
+        Noise n(0xC4A1u);
+        add_noise_burst(b.chaingun, n, 0.0, 0.08, 0.9, 55.0);
+        add_tone(b.chaingun, 0.0, 0.06, 180.0, 0.5, 45.0);
+        normalize_peak(b.chaingun, 0.7f);
+    }
+
+    b.rocket = make_sound("rocket", rate, 0.55);
+    {
+        Noise n(0x80C4u);
+        add_noise_burst(b.rocket, n, 0.0, 0.5, 0.45, 5.0);
+        double phase = 0.0;
+        for (std::size_t i = 0; i < b.rocket.samples.size(); ++i) {
+            const double t = static_cast<double>(i) / rate;
+            phase += kTwoPi * (90.0 + 260.0 * t) / rate;  // rising whoosh
+            b.rocket.samples[i] += static_cast<float>(0.6 * std::sin(phase) * std::exp(-t * 3.5) * std::min(1.0, t / 0.01) * std::min(1.0, (0.55 - t) / 0.03));
+        }
+        normalize_peak(b.rocket, 0.8f);
+    }
+
+    b.explosion = make_sound("explosion", rate, 1.0);
+    {
+        Noise n(0xE590u);
+        add_noise_burst(b.explosion, n, 0.0, 0.95, 1.0, 4.5);
+        double phase = 0.0;
+        for (std::size_t i = 0; i < b.explosion.samples.size(); ++i) {
+            const double t = static_cast<double>(i) / rate;
+            phase += kTwoPi * (35.0 + 70.0 * std::exp(-t * 6.0)) / rate;  // sub-bass rumble
+            b.explosion.samples[i] += static_cast<float>(1.1 * std::sin(phase) * std::exp(-t * 3.0) * std::min(1.0, t / 0.002) * std::min(1.0, (1.0 - t) / 0.05));
+        }
+        normalize_peak(b.explosion, 1.0f);
+    }
+
+    b.enemy_shot = make_sound("enemy_shot", rate, 0.22);
+    {
+        double phase = 0.0;
+        for (std::size_t i = 0; i < b.enemy_shot.samples.size(); ++i) {
+            const double t = static_cast<double>(i) / rate;
+            phase += kTwoPi * (180.0 + 1300.0 * std::exp(-t * 20.0)) / rate;  // falling zap
+            const double saw = 2.0 * (phase / kTwoPi - std::floor(phase / kTwoPi + 0.5));
+            b.enemy_shot.samples[i] = static_cast<float>(0.7 * saw * std::exp(-t * 12.0) * std::min(1.0, t / 0.002) * std::min(1.0, (0.22 - t) / 0.01));
+        }
+        normalize_peak(b.enemy_shot, 0.65f);
+    }
+
+    b.switch_weapon = make_sound("switch_weapon", rate, 0.22);
+    {
+        Noise n(0x5A17u);
+        add_noise_burst(b.switch_weapon, n, 0.00, 0.03, 0.8, 60.0);
+        add_tone(b.switch_weapon, 0.00, 0.05, 1400.0, 0.3, 70.0);
+        add_noise_burst(b.switch_weapon, n, 0.14, 0.04, 1.0, 50.0);
+        add_tone(b.switch_weapon, 0.14, 0.06, 900.0, 0.4, 60.0);
+        normalize_peak(b.switch_weapon, 0.5f);
+    }
+
     return b;
 }
 

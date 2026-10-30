@@ -37,6 +37,13 @@ fs::path temp_dir(const char* name) {
     return dir;
 }
 
+bool same_enemies(const std::vector<ge::EnemySpawn>& a, const std::vector<ge::EnemySpawn>& b) {
+    if (a.size() != b.size()) return false;
+    for (std::size_t i = 0; i < a.size(); ++i)
+        if (a[i].position.x != b[i].position.x || a[i].position.y != b[i].position.y || a[i].kind != b[i].kind) return false;
+    return true;
+}
+
 bool same_points(const std::vector<ge::Vec2>& a, const std::vector<ge::Vec2>& b) {
     if (a.size() != b.size()) return false;
     for (std::size_t i = 0; i < a.size(); ++i)
@@ -56,7 +63,7 @@ bool same_level(const ge::Level& a, const ge::Level& b) {
             a.pickups[i].position.y != b.pickups[i].position.y) return false;
     return a.name == b.name && std::fabs(a.spawn_angle - b.spawn_angle) < 1e-9 && a.waves_to_win == b.waves_to_win &&
            a.spawn.x == b.spawn.x && a.spawn.y == b.spawn.y && a.comments == b.comments &&
-           same_points(a.target_spawns, b.target_spawns) && same_points(a.enemy_spawns, b.enemy_spawns);
+           a.theme == b.theme && same_points(a.target_spawns, b.target_spawns) && same_enemies(a.enemy_spawns, b.enemy_spawns);
 }
 
 ge::LevelEditor hall_editor() {
@@ -118,7 +125,7 @@ TEST(serializing_rejects_levels_the_format_cannot_hold) {
     CHECK(broken([](ge::Level& l) { l.enemy_spawns.push_back({2.5, 2.5}); }));                // same cell as the player
     CHECK(broken([](ge::Level& l) { l.target_spawns.push_back({6.3, 6.5}); }));               // off a cell centre
     CHECK(broken([](ge::Level& l) { l.target_spawns.push_back({3.5, 3.5}); }));               // inside a wall (the 2-block)
-    CHECK(broken([](ge::Level& l) { l.map.set_cell(5, 5, 12); }));                            // no file character for id 12
+    CHECK(broken([](ge::Level& l) { l.map.set_cell(5, 5, 18); }));                            // no file character for id 18
     CHECK(broken([](ge::Level& l) { l.name = "two\nlines"; }));
     CHECK(broken([](ge::Level& l) { l.map = ge::GridMap(2, 2, {1, 1, 1, 1}); }));             // below 3x3
 }
@@ -151,16 +158,17 @@ TEST(editor_inserts_every_palette_item_and_selects_the_new_object) {
     CHECK(!editor.dirty());
     for (int i = 0; i < ge::LevelEditor::palette_size(); ++i) {
         editor.cycle_palette(i == 0 ? 0 : 1);
-        const int x = 1 + i % 14, y = i < 14 ? 1 : 5;  // open floor in the hall: row 1, then row 5
+        const int x = 1 + i % 14, y = 1 + (i / 14) * 4;  // open floor in the hall: rows 1 and 5
         const ge::Status s = editor.insert(x, y);
         CHECK(s.ok);
         CHECK(editor.object_at(x, y) == editor.palette_current());
         CHECK(editor.has_selection() && editor.selected_x() == x && editor.selected_y() == y);
     }
     CHECK(editor.dirty());
-    CHECK_EQ(editor.level().enemy_spawns.size(), 1u);
+    CHECK_EQ(editor.level().enemy_spawns.size(), 4u);  // grunt, gunner, brute, skitter
+    CHECK_EQ(editor.level().enemy_spawns[1].kind, ge::EnemyKind::Gunner);  // row-major: the gunner is right of the grunt
     CHECK_EQ(editor.level().target_spawns.size(), 1u);
-    CHECK_EQ(editor.level().pickups.size(), 3u);
+    CHECK_EQ(editor.level().pickups.size(), 6u);       // health, ammo, key, shotgun, chaingun, launcher
 }
 
 TEST(editor_removes_objects_from_the_level_data_not_just_the_picture) {

@@ -149,7 +149,7 @@ TEST(shipped_levels_load_are_reachable_and_playable) {
             if (p.kind == ge::PickupKind::Key) CHECK(at(before_locked, p.position));
         }
         for (const ge::Vec2& t : level->target_spawns) CHECK(at(everything, t));  // unreachable targets make a level unwinnable
-        for (const ge::Vec2& e : level->enemy_spawns) CHECK(at(everything, e));
+        for (const ge::EnemySpawn& e : level->enemy_spawns) CHECK(at(everything, e.position));
         int locked = 0, keys = 0;
         for (int y = 0; y < level->map.height(); ++y)
             for (int x = 0; x < level->map.width(); ++x)

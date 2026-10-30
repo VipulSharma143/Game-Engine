@@ -26,7 +26,13 @@ To edit levels from your own program, use the same engine pieces the Viewer uses
 returns a `Status` message, so a bad request changes nothing), `ge::crosshair_target` (what the camera points at and where an
 insert would land), `ge::Renderer::set_highlight_cell`, and `ge::save_level_file` / `ge::serialize_level_text` in
 `LevelLoader.hpp`, the exact inverse of `parse_level_text`. The editor edits cells and spawn points: walls and doors have no
-direction or size in the level format, so only the player start can be rotated and nothing can be scaled.
+direction or size in the level format, so only the player start can be rotated and nothing can be scaled. Its palette includes
+the four enemy kinds, the three weapon pickups and the extra walls `a`-`f` (ids 12-17).
+
+Also in the renderer, usable from your own programs: `ge::SpriteImage::from_ascii` (pixel art from rows of text; set
+`Sprite::image` to draw it as a billboard with transparency, and `Sprite::z` / `Sprite::light` to lift or dim it),
+`ge::ParticleSystem` (`burst`, `step`, `append_sprites`: sparks, smoke and fire in a fixed pool, deterministic, no allocation
+after construction), and `ge::TextureSet::make_procedural("foundry" | "cavern" | "lab")` for themed floors and ceilings.
 
 ## Build your own game on SORTED
 

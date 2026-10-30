@@ -15,15 +15,16 @@ constexpr std::uint32_t kCeiling = pack_rgb(40, 44, 64);
 constexpr std::uint32_t kFloor = pack_rgb(70, 70, 70);
 
 struct Rgb { unsigned r, g, b; };
-constexpr Rgb kWallColors[12] = {
+constexpr Rgb kWallColors[18] = {
     {255, 0, 255},                  // 0 unused (empty cell)
     {200, 60, 60},  {60, 190, 60},  {70, 90, 220},  {210, 190, 60}, {60, 190, 190},
     {190, 70, 190}, {230, 230, 230}, {230, 140, 50}, {140, 90, 50},
     {120, 80, 40},  {170, 40, 40},  // 10 door, 11 locked door
+    {50, 150, 120}, {220, 190, 30}, {100, 130, 80}, {150, 85, 50}, {220, 80, 20}, {130, 200, 240},  // 12-17
 };
 
 std::uint32_t shade_wall(std::uint8_t id, bool y_side, double distance) noexcept {
-    const Rgb base = kWallColors[id < 12 ? id : 0];
+    const Rgb base = kWallColors[id < 18 ? id : 0];
     double light = 1.0 / (1.0 + distance * distance * 0.02);
     if (y_side) light *= 0.7;
     light = clamp(light, 0.08, 1.0);

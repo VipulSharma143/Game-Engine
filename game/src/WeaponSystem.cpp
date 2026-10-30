@@ -37,10 +37,17 @@ bool weapon_step(Weapon& w, bool fire, bool reload, double dt) noexcept {
     w.flash = std::max(0.0, w.flash - dt * 6.0);
     if (w.reloading()) {
         w.reload_left -= dt;
-        if (w.reload_left <= 0.0) { w.reload_left = 0.0; w.ammo = w.magazine; }
+        if (w.reload_left <= 0.0) {
+            w.reload_left = 0.0;
+            const int need = w.magazine - w.ammo;
+            const int take = w.reserve < 0 ? need : std::min(need, w.reserve);
+            w.ammo += take;
+            if (w.reserve >= 0) w.reserve -= take;
+        }
         return false;
     }
-    if ((reload && w.ammo < w.magazine) || w.ammo == 0) {
+    if (w.out_of_ammo()) return false;  // nothing left to fire or load
+    if ((reload && w.can_reload()) || w.ammo == 0) {
         w.reload_left = w.reload_time;
         return false;
     }
