@@ -51,6 +51,7 @@ add_library(ge_engine STATIC
   engine/core/Settings.cpp
   engine/optimized/CpuFeatures.cpp
   engine/optimized/FogBlend.cpp
+  engine/optimized/SpanKernels.cpp
   engine/audio/AudioMixer.cpp
   engine/audio/Synth.cpp
   engine/audio/Wav.cpp
@@ -77,6 +78,10 @@ target_compile_features(ge_engine PUBLIC cxx_std_20)
 ge_enable_warnings(ge_engine)
 ge_enable_sanitizers(ge_engine)
 ge_link_assembly(ge_engine)
+# The NASM kernels never fuse a multiply and an add, so the C++ fallbacks must not either (identical bits).
+if(NOT MSVC)
+  target_compile_options(ge_engine PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-ffp-contract=off>)
+endif()
 ge_link_sdl(ge_engine)
 
 # ---- FunkShot: the game (library + executable) built on the engine ----------------------------------------

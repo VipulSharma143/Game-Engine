@@ -101,7 +101,7 @@ void Renderer::render_textured(const GridMap& map, const Camera& camera, Framebu
     const int half = h / 2;
     std::span<std::uint32_t> px = target.pixels();
 
-    // ---- floor and ceiling, one horizontal span per row -------------------------------------
+    // ---- floor and ceiling, one horizontal span per row (NASM or C++ kernel) --------------------
     const Vec2 left = camera.direction - camera.plane;
     const Vec2 span = camera.plane * 2.0;
     for (int y = 0; y < h; ++y) {
@@ -110,18 +110,16 @@ void Renderer::render_textured(const GridMap& map, const Camera& camera, Framebu
         if (p <= 0.0) continue;
         const double row_distance = 0.5 * h / p;
         const int light = light_for(row_distance, 1.0);
-        double fx = camera.position.x + row_distance * (left.x + span.x * 0.5 / w);
-        double fy = camera.position.y + row_distance * (left.y + span.y * 0.5 / w);
+        const double fx = camera.position.x + row_distance * (left.x + span.x * 0.5 / w);
+        const double fy = camera.position.y + row_distance * (left.y + span.y * 0.5 / w);
         const double sx = row_distance * span.x / w;
         const double sy = row_distance * span.y / w;
         std::uint32_t* row = px.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(w);
-        for (int x = 0; x < w; ++x, fx += sx, fy += sy) {
-            const double cx = std::floor(fx), cy = std::floor(fy);
-            const int tx = static_cast<int>((fx - cx) * Texture::kSize);
-            const int ty = static_cast<int>((fy - cy) * Texture::kSize);
-            const Texture& t = is_floor ? tex.floor(static_cast<int>(cx) + static_cast<int>(cy)) : tex.ceiling();
-            row[x] = t.at(tx, ty);  // raw texel; the whole row is fogged in one kernel call below
-        }
+        // The row's raw texels come from one kernel call (the floor is a checkerboard of two textures, the
+        // ceiling a single one); the whole row is then fogged in a second call.
+        const auto params = opt::make_floor_span_params(is_floor ? tex.floor_atlas() : tex.ceiling().pixels().data(), fx, fy, sx, sy,
+                                                        is_floor ? 1u : 0u);
+        opt::floor_span(row, static_cast<std::size_t>(w), params);
         opt::fog_blend(row, row, static_cast<std::size_t>(w), static_cast<std::uint32_t>(light), kFogColor);
     }
 

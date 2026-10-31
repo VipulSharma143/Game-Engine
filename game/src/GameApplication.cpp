@@ -300,6 +300,11 @@ void GameApplication::fire_weapon() {
 }
 
 // A blast: splash damage that fades with distance (blocked by walls), fire and smoke, a flash if you are close.
+namespace {
+constexpr double kPlayerBlastRadius = 0.3;  // body radius used for blast damage
+constexpr double kSelfDamageFactor = 0.5;   // share of a rocket's blast damage that hits the player who fired it
+}  // namespace
+
 int GameApplication::explode(ge::Vec2 position, double radius, int damage) {
     events_.publish(Explosion{position, radius});
     ge::Particle fire;
@@ -329,6 +334,13 @@ int GameApplication::explode(ge::Vec2 position, double radius, int damage) {
         const double scale = std::clamp(1.0 - std::max(0.0, d - thing.radius) / radius, 0.0, 1.0);
         damage_thing(c, std::max(1, static_cast<int>(std::lround(damage * scale))), thing.position);
         ++damaged;
+    }
+    // Your own rockets hurt too, at half strength (blocked by walls like everything else): not a free point-blank weapon.
+    const double self_d = std::hypot(player_.position.x - position.x, player_.position.y - position.y);
+    if (self_d <= radius + kPlayerBlastRadius && line_of_sight(level_.map, position, player_.position)) {
+        const double scale = std::clamp(1.0 - std::max(0.0, self_d - kPlayerBlastRadius) / radius, 0.0, 1.0);
+        const int self_damage = static_cast<int>(std::lround(damage * scale * kSelfDamageFactor));
+        if (self_damage > 0) damage_player(self_damage);
     }
     return damaged;
 }
@@ -479,7 +491,9 @@ void GameApplication::fixed_update(const ge::InputState& input, double dt) {
 }
 
 void GameApplication::update_playing(const ge::InputState& input, double dt) {
+    const ge::Vec2 before = player_.position;
     update_player(player_, input, level_.map, dt);
+    player_velocity_ = dt > 0.0 ? ge::Vec2{(player_.position.x - before.x) / dt, (player_.position.y - before.y) / dt} : ge::Vec2{};
     if (input.use) try_use_door();
 
     handle_weapon_input(input);
@@ -573,7 +587,7 @@ void GameApplication::render(ge::Framebuffer& target) {
         sprites_.push_back(s);
     }
     particles_.append_sprites(sprites_);
-    ge::draw_sprites(cam, renderer_.depth(), sprites_, target);
+    ge::draw_sprites(cam, renderer_.depth(), sprites_, target, sprite_scratch_);
     if (hurt_flash_ > 0.0) tint_red(target, hurt_flash_);
     if (blast_flash_ > 0.0) tint_warm(target, blast_flash_);
 

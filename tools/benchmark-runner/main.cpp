@@ -172,6 +172,46 @@ int main(int argc, char** argv) {
         }
         ge::opt::set_fog_kernel(original);
     }
+    // ---- the span kernels on their own: one row of floor, one row of a sprite, a full-screen tint -------
+    {
+        const ge::opt::FogKernel original = ge::opt::active_fog_kernel();
+        std::printf("\nspan kernels at %dx%d (ratio against the C++ kernel, >1 = faster; results must be identical):\n", width, height);
+        std::vector<std::uint32_t> atlas(8192);
+        for (std::size_t i = 0; i < atlas.size(); ++i) atlas[i] = 0xFF000000u | static_cast<std::uint32_t>(i * 2654435761u);
+        const std::size_t w = static_cast<std::size_t>(width);
+        std::vector<std::uint32_t> row(w), sprite_row(w), screen(w * static_cast<std::size_t>(height));
+        std::vector<std::uint32_t> image_row(64);
+        for (std::size_t i = 0; i < image_row.size(); ++i) image_row[i] = (i % 5 == 0) ? 0u : (0xFF000000u | static_cast<std::uint32_t>(i * 40503u));
+        std::vector<std::int32_t> columns(w);
+        for (std::size_t i = 0; i < w; ++i) columns[i] = (i % 7 == 0) ? -1 : static_cast<std::int32_t>(i * 64 / w);
+        double base_floor = 0, base_sprite = 0, base_tint = 0;
+        std::uint64_t ref_floor = 0, ref_sprite = 0, ref_tint = 0;
+        for (ge::opt::FogKernel k : {ge::opt::FogKernel::Scalar, ge::opt::FogKernel::Sse2, ge::opt::FogKernel::Avx2}) {
+            if (!ge::opt::set_fog_kernel(k)) continue;
+            const auto fp = ge::opt::make_floor_span_params(atlas.data(), 8.3, 8.1, 0.011, 0.007, 1);
+            auto sp = ge::opt::make_sprite_span_params(200, 40, columns.data());
+            sp.row = image_row.data();
+            const auto tp = ge::opt::make_tint_params(256, 200, 200, 60, 0, 0);
+            const double floor_ns = bench_ns([&](int) { ge::opt::floor_span(row.data(), w, fp); g_sink = row[3]; }, 15, 20000);
+            const double sprite_ns = bench_ns([&](int) { ge::opt::sprite_span(sprite_row.data(), w, sp); g_sink = sprite_row[3]; }, 15, 20000);
+            const double tint_ns = bench_ns([&](int) { ge::opt::tint(screen.data(), screen.size(), tp); g_sink = screen[3]; }, 15, 200);
+            // fixed inputs -> checksums that every kernel must agree on
+            ge::opt::floor_span(row.data(), w, fp);
+            std::fill(sprite_row.begin(), sprite_row.end(), 0x11223344u);
+            ge::opt::sprite_span(sprite_row.data(), w, sp);
+            for (std::size_t i = 0; i < screen.size(); ++i) screen[i] = 0xFF000000u | static_cast<std::uint32_t>(i * 2654435761u);
+            ge::opt::tint(screen.data(), screen.size(), tp);
+            const std::uint64_t cf = ge::opt::fnv1a64_u32(row.data(), row.size(), ge::scalar::kFnvOffsetBasis);
+            const std::uint64_t cs = ge::opt::fnv1a64_u32(sprite_row.data(), sprite_row.size(), ge::scalar::kFnvOffsetBasis);
+            const std::uint64_t ct = ge::opt::fnv1a64_u32(screen.data(), screen.size(), ge::scalar::kFnvOffsetBasis);
+            if (k == ge::opt::FogKernel::Scalar) { base_floor = floor_ns; base_sprite = sprite_ns; base_tint = tint_ns; ref_floor = cf; ref_sprite = cs; ref_tint = ct; }
+            std::printf("  %-11s: floor row %7.1f ns (%.2fx), sprite row %7.1f ns (%.2fx), full-screen tint %9.1f ns (%.2fx), results %s\n",
+                        ge::opt::fog_kernel_name(k), floor_ns, base_floor / floor_ns, sprite_ns, base_sprite / sprite_ns, tint_ns, base_tint / tint_ns,
+                        (cf == ref_floor && cs == ref_sprite && ct == ref_tint) ? "identical" : "DIFFERENT");
+            if (cf != ref_floor || cs != ref_sprite || ct != ref_tint) { ge::opt::set_fog_kernel(original); return 1; }
+        }
+        ge::opt::set_fog_kernel(original);
+    }
     if (textured_only) return 0;
 
     const long n = frames >= 100 ? 20000000L : 100000L;

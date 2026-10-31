@@ -34,9 +34,23 @@ struct Projection {
 };
 Projection project_point(const Camera& camera, Vec2 world, int screen_width) noexcept;
 
+// Working buffers for draw_sprites. Keep one alive across frames: after the first few frames the buffers have
+// reached their final size and drawing allocates nothing.
+struct SpriteScratch {
+    struct Item {
+        const Sprite* sprite = nullptr;
+        Projection projection;
+    };
+    std::vector<Item> items;           // visible sprites, sorted far to near
+    std::vector<std::int32_t> columns; // texel column for each screen column of the picture being drawn (-1 = hidden)
+};
+
 // Draws shaded round sprites. `depth` holds one wall distance per screen column.
 // Returns how many sprites had at least one visible column.
+// The first form allocates its working buffers on every call; the second reuses `scratch`.
 int draw_sprites(const Camera& camera, std::span<const double> depth, std::span<const Sprite> sprites,
                  Framebuffer& target);
+int draw_sprites(const Camera& camera, std::span<const double> depth, std::span<const Sprite> sprites,
+                 Framebuffer& target, SpriteScratch& scratch);
 
 }  // namespace ge

@@ -72,6 +72,10 @@ void GameApplication::damage_player(int amount) {
     }
 }
 
+namespace {
+constexpr double kLeadFactor = 0.7;  // how much of a perfect lead gunners apply
+}  // namespace
+
 void GameApplication::update_enemies(double dt) {
     if (enemies_.empty()) return;
 
@@ -91,7 +95,11 @@ void GameApplication::update_enemies(double dt) {
         const EnemyDecision d = enemy_think(*en, t->position, player_.position, level_.map, field_, alerted, dt);
         t->position = slide_move(level_.map, t->position, d.move, en->radius);
         if (d.attack) damage_player(en->damage);
-        if (d.fire) spawn_enemy_bolt(i, d.aim);
+        if (d.fire) {
+            // Aim where the player is going, not where they were; imperfectly (kLeadFactor) so strafing still works.
+            const ge::Vec2 aim = lead_aim(t->position, player_.position, player_velocity_, en->shot_speed, kLeadFactor);
+            spawn_enemy_bolt(i, (aim.x == 0.0 && aim.y == 0.0) ? d.aim : aim);
+        }
         if (state_ != GameState::Playing) return;
     }
 

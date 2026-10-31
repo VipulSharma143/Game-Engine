@@ -159,4 +159,16 @@ ge::Vec2 slide_move(const ge::GridMap& map, ge::Vec2 p, ge::Vec2 delta, double h
     return p;
 }
 
+ge::Vec2 lead_aim(ge::Vec2 shooter, ge::Vec2 target, ge::Vec2 target_velocity, double shot_speed, double lead) noexcept {
+    ge::Vec2 to{target.x - shooter.x, target.y - shooter.y};
+    const double distance = std::hypot(to.x, to.y);
+    if (shot_speed > 0.0 && distance > 1e-6) {
+        const double flight = distance / shot_speed * lead;  // seconds the bolt is in the air, scaled by `lead`
+        to = {to.x + target_velocity.x * flight, to.y + target_velocity.y * flight};
+    }
+    const double length = std::hypot(to.x, to.y);
+    if (length < 1e-9) return {0.0, 0.0};
+    return {to.x / length, to.y / length};
+}
+
 }  // namespace game

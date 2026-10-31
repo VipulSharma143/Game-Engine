@@ -1,5 +1,6 @@
 // The new weapons (shotgun, chaingun, rocket launcher), the new enemies (gunner, brute, skitter), projectiles,
 // weapon pickups and switching, and kill rewards.
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <memory>
@@ -190,6 +191,25 @@ TEST(a_rocket_flies_then_explodes_at_the_wall_and_the_blast_fades_with_distance)
     CHECK(far_damage > 0);
     CHECK(near_damage > far_damage);
     CHECK(splash_at({5.5, 4.5}, nullptr) == 0);                // far from the blast: untouched
+}
+
+TEST(your_own_rocket_hurts_you_when_it_bursts_close_and_not_when_it_bursts_far_away) {
+    auto health_after_firing = [](double player_x) {
+        auto app = app_from(kHall);
+        app->place_single_target({5.5, 4.5});           // keeps the wave alive; far from every blast
+        app->mutable_player().position.x = player_x;     // facing east, along the row to the east wall
+        arm(*app, WeaponId::Launcher);
+        const int before = app->player().health;
+        step(*app, 1, holding_fire());
+        for (int i = 0; i < 300 && app->projectile_count() > 0; ++i) step(*app, 1);
+        CHECK_EQ(app->projectile_count(), 0u);
+        return before - app->player().health;
+    };
+    const int point_blank = health_after_firing(19.0);    // the wall is about a cell away
+    const int far_away = health_after_firing(2.5);        // about 18 cells away: far outside the blast
+    CHECK(point_blank > 0);
+    CHECK(point_blank < 60);                             // half strength: a bad idea, not instant death
+    CHECK_EQ(far_away, 0);
 }
 
 TEST(a_rocket_that_hits_something_explodes_on_it_and_counts_as_a_hit) {
@@ -554,4 +574,35 @@ TEST(the_new_game_events_play_their_sounds) {
     app->events().publish(game::Explosion{{4.0, 2.0}, 2.0});
     app->events().publish(game::WeaponSwitched{1});
     CHECK_EQ(mixer.total_started() - base, 6u);
+}
+
+TEST(damage_and_blast_flashes_tint_the_whole_frame_as_before_within_one_level) {
+    // The flashes now run through the tint kernel (fixed point); the original per-pixel integer formulas are the reference.
+    auto original_red = [](std::uint32_t px, unsigned add) {
+        return ge::pack_rgb(std::min(255u, ge::red_of(px) + add), ge::green_of(px) * (200u - add / 2) / 200u, ge::blue_of(px) * (200u - add / 2) / 200u);
+    };
+    auto original_warm = [](std::uint32_t px, unsigned a) {
+        return ge::pack_rgb(std::min(255u, ge::red_of(px) + a), std::min(255u, ge::green_of(px) + a * 6 / 10), ge::blue_of(px) * (200u - a / 2) / 200u);
+    };
+    auto within_one = [](std::uint32_t a, std::uint32_t b) {
+        for (unsigned shift = 0; shift < 32; shift += 8) {
+            const int d = static_cast<int>((a >> shift) & 255u) - static_cast<int>((b >> shift) & 255u);
+            if (d < -1 || d > 1) return false;
+        }
+        return true;
+    };
+    ge::Framebuffer base(37, 11);  // odd size: exercises the kernel tails
+    unsigned s = 5;
+    for (std::uint32_t& p : base.pixels()) { s = s * 1664525u + 1013904223u; p = 0xFF000000u | (s & 0xFFFFFFu); }
+    for (double amount : {0.2, 0.5, 1.0}) {
+        ge::Framebuffer red = base, warm = base;
+        game::tint_red(red, amount);
+        game::tint_warm(warm, amount);
+        const unsigned add = static_cast<unsigned>(amount * 110.0), a = static_cast<unsigned>(amount * 90.0);
+        for (std::size_t i = 0; i < base.pixels().size(); ++i) {
+            CHECK(within_one(red.pixels()[i], original_red(base.pixels()[i], add)));
+            CHECK(within_one(warm.pixels()[i], original_warm(base.pixels()[i], a)));
+            CHECK_EQ(red.pixels()[i] >> 24, 0xFFu);
+        }
+    }
 }

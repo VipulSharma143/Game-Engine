@@ -1,5 +1,7 @@
 #include "game/Hud.hpp"
 
+#include "engine/optimized/OptimizedRoutines.hpp"
+
 #include <algorithm>
 #include <cstdio>
 #include <string>
@@ -241,16 +243,18 @@ void draw_gameover_screen(ge::Framebuffer& fb, const HudData& d) {
     centered(fb, h * 3 / 4 + 6, "Q QUIT", ge::pack_rgb(200, 200, 200));
 }
 
+// Both flashes are a per-channel scale and add over the whole frame: one NASM/C++ kernel call (ge::opt::tint).
 void tint_red(ge::Framebuffer& fb, double amount) {
     const unsigned add = static_cast<unsigned>(std::clamp(amount, 0.0, 1.0) * 110.0);
-    for (std::uint32_t& px : fb.pixels())
-        px = ge::pack_rgb(std::min(255u, ge::red_of(px) + add), ge::green_of(px) * (200u - add / 2) / 200u, ge::blue_of(px) * (200u - add / 2) / 200u);
+    const unsigned dim = (200u - add / 2) * 256u / 200u;  // green and blue keep (200 - add/2)/200 of their value
+    const auto p = ge::opt::make_tint_params(256, dim, dim, add, 0, 0);
+    ge::opt::tint(fb.pixels().data(), fb.pixels().size(), p);
 }
 
 void tint_warm(ge::Framebuffer& fb, double amount) {
     const unsigned a = static_cast<unsigned>(std::clamp(amount, 0.0, 1.0) * 90.0);
-    for (std::uint32_t& px : fb.pixels())
-        px = ge::pack_rgb(std::min(255u, ge::red_of(px) + a), std::min(255u, ge::green_of(px) + a * 6 / 10), ge::blue_of(px) * (200u - a / 2) / 200u);
+    const auto p = ge::opt::make_tint_params(256, 256, (200u - a / 2) * 256u / 200u, a, a * 6 / 10, 0);
+    ge::opt::tint(fb.pixels().data(), fb.pixels().size(), p);
 }
 
 }  // namespace game

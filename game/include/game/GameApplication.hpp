@@ -102,9 +102,11 @@ private:
     unsigned map_version_ = 0;         // bumped when a door opens
     unsigned field_version_ = ~0u;
     double hurt_flash_ = 0.0;
+    ge::Vec2 player_velocity_{};       // cells per second over the last step; gunners lead their shots with it
     double alert_timer_ = 0.0;         // > 0: gunfire was heard, idle enemies wake up
     unsigned enemy_kills_ = 0;
     std::vector<ge::Sprite> sprites_;  // reused every frame
+    ge::SpriteScratch sprite_scratch_; // working buffers of draw_sprites, reused every frame
     std::array<Weapon, kWeaponCount> weapons_;
     unsigned owned_weapons_ = 1;       // bit per WeaponId; the pistol from the start
     int current_weapon_ = 0;

@@ -72,6 +72,12 @@ struct EnemyDecision {
 EnemyDecision enemy_think(Enemy& enemy, ge::Vec2 position, ge::Vec2 player, const ge::GridMap& map,
                           const DistanceField& field, bool alerted, double dt) noexcept;
 
+// Unit vector for a shot from `shooter` that meets a target moving at `target_velocity`, assuming it keeps its
+// velocity: aims where the target will be when a bolt of `shot_speed` (cells per second) arrives. `lead` scales the
+// prediction (0 = aim at the target, 1 = perfect lead) so enemies can be beaten by changing direction. A stationary
+// target, a zero speed or a target on top of the shooter gives the plain direction (zero vector if they coincide).
+ge::Vec2 lead_aim(ge::Vec2 shooter, ge::Vec2 target, ge::Vec2 target_velocity, double shot_speed, double lead) noexcept;
+
 // Moves a square of half-size `half` by `delta`, sliding along walls (axes are resolved separately).
 ge::Vec2 slide_move(const ge::GridMap& map, ge::Vec2 position, ge::Vec2 delta, double half) noexcept;
 

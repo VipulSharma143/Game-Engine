@@ -32,6 +32,18 @@ They use only rax, r10, r11, the argument registers and xmm0 (all volatile on bo
 
 `fog_blend` takes its last two arguments through a small `FogParams { light, fog_color }` struct passed by pointer, so there is no floating-point or fifth-argument register difference between the two ABIs. The AVX2 routine is selected only when `ge::cpu_features().avx2` is true, which requires the CPUID AVX2 bit **and** OSXSAVE with XGETBV reporting XMM+YMM state enabled. It ends with `vzeroupper`. Both routines use only xmm0-xmm5 / ymm0-ymm5 (xmm6-xmm15 are callee-saved on Windows and are never touched), rax and the argument registers, no stack and no calls, so stack alignment is irrelevant. `ge::opt::set_fog_kernel` forces a kernel for tests and benchmarks and refuses one the machine cannot run.
 
+### Span kernels (shared source for both ABIs; SSE2 and AVX2 each)
+
+Selected at run time together with the fog kernel (`set_fog_kernel` / `--fog-kernel` force all of them). Parameters travel in one 32-byte-aligned block passed by pointer (`FloorSpanParams`, `SpriteSpanParams`, `TintParams` in `OptimizedRoutines.hpp`; layouts are `static_assert`ed and read by offset), so doubles and a fifth argument never depend on the ABI. These routines also use read-only constants (`GE_RODATA` in `abi.inc`).
+
+| C++ wrapper | NASM symbols | What it does |
+| --- | --- | --- |
+| `opt::floor_span(dst, count, params)` | `ge_floor_span_sse2`, `ge_floor_span_avx2` | one screen row of floor/ceiling: position `fx + i*sx` (separate multiply and add), floor via truncate-and-correct (SSE2) or `vroundpd` (AVX2), texel fetch by scalar loads (SSE2) or `vpgatherdd` (AVX2). `|position| < 2^30` |
+| `opt::sprite_span(dst, count, params)` | `ge_sprite_span_sse2`, `ge_sprite_span_avx2` | one sprite row: gather by `ix[i]` (negative = skip), alpha >= 128 test, fixed-point shade, masked store; returns whether anything was written. Reads `ix` for exactly `count` entries |
+| `opt::tint(px, count, params)` | `ge_tint_sse2`, `ge_tint_avx2` | in place, per channel `min(255, ((c*mul)>>8) + add)` |
+
+The 16-bit tricks used: `(c*L)>>8` is computed as `pmulhuw(c<<8, L)` (the colour byte is unpacked into the *high* byte of each word, which is also free), and `255 - v` as `v xor 255`. Reference implementations: `ge::scalar::floor_span`, `shade_u32`, `sprite_span`, `tint_u32`. These routines do not use a stack frame. They never use FMA: the C++ reference must give the same bits, hence `-ffp-contract=off`.
+
 ## Calling conventions
 
 | | Linux (System V AMD64) | Windows x64 |

@@ -41,11 +41,15 @@ public:
     const Texture& wall(std::uint8_t id) const noexcept { return walls_[id < walls_.size() ? id : 0]; }
     const Texture& floor(int variant) const noexcept { return floors_[static_cast<std::size_t>(variant & 1)]; }
     const Texture& ceiling() const noexcept { return ceiling_; }
+    // Both floor variants back to back (2 * kSize * kSize texels): variant v starts at v * kSize * kSize. The
+    // floor-row kernels pick the variant per pixel from the cell parity, which needs one contiguous block.
+    const std::uint32_t* floor_atlas() const noexcept { return floor_atlas_.data(); }
 
 private:
     std::array<Texture, 18> walls_;  // index 0 is a magenta "missing" texture; 10 = door, 11 = locked door
     std::array<Texture, 2> floors_;
     Texture ceiling_;
+    std::vector<std::uint32_t> floor_atlas_;  // floors_[0] then floors_[1], built by make_procedural
 };
 
 // Deterministic integer hash used by the generators (exposed for tests).

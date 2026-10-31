@@ -57,6 +57,26 @@ Reading: the AVX2 kernel is clearly faster than the C++ one in isolation, but fo
 
 The earlier routines (`fill_u32`, `fill_column_u32`, `fnv1a64_u32`) measure at 1.00x, 0.75x and 1.03x on the same run: no gain, kept as tested infrastructure.
 
+## Floor rows, sprite rows and tint: SSE2 and AVX2 versus C++ (0.5.0)
+
+Profiling the textured frame showed that the floor and ceiling pass, not walls or fog, was about 80% of it (0.37 of 0.45 ms at 320x200): two `floor` calls and a texel fetch per pixel. That pass, the sprite pixel loop and the full-screen damage/blast tints are now kernels (`span.asm`, `tint.asm`), all bit-identical to their C++ references (`assembly_span_kernels`, and `unit_texture` renders whole frames with every kernel and compares checksums).
+
+Measured 2026-10-31, same kind of container (1 vCPU Xeon with AVX2, GCC 13.3 Release), `ge-bench --textured-only` (it prints the same table), ratio C++/asm, >1 = asm faster:
+
+| What | SSE2 | AVX2 |
+| --- | --- | --- |
+| floor row, 320 px (1540-1620 ns in C++) | 1.4x - 1.5x | 4.0x - 4.3x |
+| sprite row, 320 px (950-970 ns in C++) | 2.4x | 5.4x - 5.6x |
+| full-screen tint, 320x200 (the C++ reference is a generic per-channel loop, not the old hand-written one) | 9x | 16x - 17x |
+| whole textured frame, 320x200 | 1.1x - 1.4x | 2.1x - 2.3x (0.45 ms before this change, 0.22 ms after) |
+| whole textured frame, 640x400 | about 1.3x | about 2.2x (1.7-2.2 ms before, 0.8-0.9 ms after; runs on this machine vary a lot) |
+
+Sprites, measured with a throwaway harness against the previous library (8 picture sprites 32x40, 60 sphere particles): picture sprites 108 us -> 17 us at 320x200 and 430 us -> 60 us at 640x400, mostly from hoisting the per-pixel `double` divisions into per-column and per-row tables, then the kernel. Sphere particles (still C++) did not change (43 us -> 43 us). The first picture-sprite figures are for the AVX2 build; the SSE2 sprite kernel is 2.4x over C++ in isolation.
+
+Reading: the AVX2 floor kernel's advantage comes from `vpgatherdd` plus doing four positions per vector; the SSE2 floor kernel fetches texels with scalar loads and gains little over the C++ loop, so on a CPU without AVX2 expect roughly the old speed. Gather speed varies by CPU (slower on some AMD parts); re-measure on the Linux Mint machine. The no-NASM build is unchanged in output and runs the C++ kernels at its previous speed (the C++ floor loop is at parity with the old one).
+
+Floor positions are now `start + i * step` instead of an accumulated sum. For the benchmark path (400 frames, many poses) every pixel came out identical to the previous renderer (same checksum); in general a sample that lies within about 1e-13 of a texel border could land in the neighbouring texel.
+
 ## Candidate optimisations (only if profiling justifies them)
 
 Column-major or tiled framebuffer writes, cheaper shading, precomputed per-column ray directions.

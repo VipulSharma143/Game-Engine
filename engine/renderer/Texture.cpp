@@ -285,6 +285,8 @@ TextureSet TextureSet::make_procedural(std::string_view theme) {
         make_floor(s.floors_[1], {80, 78, 76}, 21);
         make_ceiling(s.ceiling_, {55, 62, 88}, 30);
     }
+    s.floor_atlas_.reserve(2u * s.floors_[0].pixels().size());
+    for (const Texture& floor : s.floors_) s.floor_atlas_.insert(s.floor_atlas_.end(), floor.pixels().begin(), floor.pixels().end());
     return s;
 }
 

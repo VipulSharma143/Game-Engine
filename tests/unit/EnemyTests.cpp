@@ -152,3 +152,27 @@ TEST(enemy_finds_its_way_around_a_wall_to_the_player) {
     CHECK(attacked);
     CHECK(dist(pos, player) <= e.attack_range + 1e-6);
 }
+
+TEST(lead_aim_points_ahead_of_a_moving_target_and_straight_at_a_still_one) {
+    const ge::Vec2 shooter{0.0, 0.0};
+    // Target 10 cells east, standing still: straight at it.
+    const ge::Vec2 still = game::lead_aim(shooter, {10.0, 0.0}, {0.0, 0.0}, 5.0, 1.0);
+    CHECK_NEAR(still.x, 1.0, 1e-12);
+    CHECK_NEAR(still.y, 0.0, 1e-12);
+    // Target 10 east running north at 2.5 cells/s, bolts at 5 cells/s: it will be 5 cells north when the bolt arrives
+    // (flight 2 s), so the aim is the direction to (10, 5), i.e. up and to the right, with the exact angle of atan2(5, 10).
+    const ge::Vec2 led = game::lead_aim(shooter, {10.0, 0.0}, {0.0, 2.5}, 5.0, 1.0);
+    CHECK_NEAR(std::atan2(led.y, led.x), std::atan2(5.0, 10.0), 1e-12);
+    CHECK_NEAR(std::hypot(led.x, led.y), 1.0, 1e-12);
+    // Half lead aims half way between the two.
+    const ge::Vec2 half = game::lead_aim(shooter, {10.0, 0.0}, {0.0, 2.5}, 5.0, 0.5);
+    CHECK_NEAR(std::atan2(half.y, half.x), std::atan2(2.5, 10.0), 1e-12);
+    // No lead for lead = 0, a zero shot speed, or when the target sits on the shooter.
+    const ge::Vec2 none = game::lead_aim(shooter, {10.0, 0.0}, {0.0, 2.5}, 5.0, 0.0);
+    CHECK_NEAR(none.y, 0.0, 1e-12);
+    const ge::Vec2 slow = game::lead_aim(shooter, {10.0, 0.0}, {0.0, 2.5}, 0.0, 1.0);
+    CHECK_NEAR(slow.y, 0.0, 1e-12);
+    const ge::Vec2 same = game::lead_aim({3.0, 3.0}, {3.0, 3.0}, {1.0, 1.0}, 5.0, 1.0);
+    CHECK_NEAR(same.x, 0.0, 0.0);
+    CHECK_NEAR(same.y, 0.0, 0.0);
+}

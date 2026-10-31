@@ -70,12 +70,12 @@ Every behaviour change needs a test in `tests/` (harness: `tests/support/TestFra
 
 - `IPlatform`, `Application`, `InputState`, `EngineConfig`: used by the engine loop, game, tests and (later) platform backends.
 - `Framebuffer` pixel format (0xAARRGGBB) and `cast_ray` distance semantics (ray parameter = perpendicular distance when `dir = camera.direction + camera.plane * k`).
-- Asm symbol names (`ge_add_i64`, `ge_linux_multiply_i64`, `ge_windows_*`, `ge_fill_u32`, `ge_fill_column_u32`, `ge_fnv1a64_u32`) and their declarations in `OptimizedRoutines.cpp`.
+- Asm symbol names (`ge_add_i64`, `ge_linux_multiply_i64`, `ge_windows_*`, `ge_fill_u32`, `ge_fill_column_u32`, `ge_fnv1a64_u32`, `ge_fog_blend_*`, `ge_floor_span_*`, `ge_sprite_span_*`, `ge_tint_*`) and the parameter block layouts in `OptimizedRoutines.hpp` (read by offset) and their declarations in `OptimizedRoutines.cpp`.
 - Map semantics: 0 = empty, non-zero = wall id, out of bounds = solid.
 
 ## Implemented vs planned
 
-Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum) with fallbacks, tests, benchmark tool. Also implemented: SDL3 window and input, textured rendering with level themes, four enemy kinds (one ranged), four weapons (shotgun, chaingun, rocket launcher), projectiles with blast damage, pixel-art sprites, particles, pickups, doors, audio, text levels, in-Viewer level editing (`F2`: select, insert, remove, move, change, rotate the player start, save, reload), `.deb` and Setup.exe packaging. Not verified locally: the MSVC build, the Windows installer (CI only), Clang. **Planned (do not describe as working):** JSON levels/prefabs, a standalone editor tool, scripting, multithreading.
+Implemented and tested: core, raycaster, grid world, player + collision, headless platform, NASM routines (add, multiply, fill, column fill, checksum, fog blend, floor row, sprite row, full-screen tint) with fallbacks, tests, benchmark tool. Also implemented: SDL3 window and input, textured rendering with level themes, four enemy kinds (one ranged), four weapons (shotgun, chaingun, rocket launcher), projectiles with blast damage, pixel-art sprites, particles, pickups, doors, audio, text levels, in-Viewer level editing (`F2`: select, insert, remove, move, change, rotate the player start, save, reload), `.deb` and Setup.exe packaging. Not verified locally: the MSVC build, the Windows installer (CI only), Clang. **Planned (do not describe as working):** JSON levels/prefabs, a standalone editor tool, scripting, multithreading.
 
 Do not claim a feature exists because a file or directory exists: empty directories under `assets/`, `tools/` and `engine/{audio,resources}` are reserved placeholders.
 

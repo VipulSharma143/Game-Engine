@@ -43,6 +43,16 @@ bits 64
 %1:
 %endmacro
 
+; Read-only data (constants for SIMD kernels). Labels defined here are file-local: every file
+; keeps its own copy, prefixed ge_k_..., so nothing is exported.
+%macro GE_RODATA 0
+  %ifidn __OUTPUT_FORMAT__, elf64
+    section .rodata align=32
+  %else
+    section .rdata align=32
+  %endif
+%endmacro
+
 ; ELF only: mark the stack as non-executable.
 %macro GE_END 0
   %ifidn __OUTPUT_FORMAT__, elf64

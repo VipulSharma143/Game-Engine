@@ -20,6 +20,12 @@ two newest releases are kept in this file; older releases are in [ARCHIVE_CHANGE
 ### Improvements
 
 - Levels keep their `;` description lines when loaded and saved.
+- **Faster rendering, same picture.** Three new NASM routines, each with a bit-identical C++ fallback and run-time SSE2/AVX2 selection: `floor_span` (floor and ceiling rows; this was about 80% of a textured frame), `sprite_span` (gather, alpha test and shading of one sprite row) and `tint` (full-screen colour scale-and-add). Measured on the development container (1 vCPU Xeon with AVX2, GCC 13.3, Release): the textured frame at 320x200 went from about 0.45 ms to about 0.22 ms and at 640x400 from about 1.7-2.2 ms to about 0.8-0.9 ms, with identical pixels (the benchmark checksum is unchanged); drawing eight picture sprites went from about 108 us to about 17 us. The no-NASM build renders the same pixels at its previous speed.
+- Sprites: texel columns and rows are worked out once per sprite instead of per pixel, and `draw_sprites` can reuse a `ge::SpriteScratch` so a frame allocates nothing. Sprite shading is now fixed point (`ge::scalar::shade_u32`); pixels differ from before by at most one level.
+- The damage and blast screen flashes run through the new tint kernel (same look, at most one level different).
+- Gunners lead a moving player (`game::lead_aim`, 70% of a perfect lead), so standing still or running straight at them is more dangerous and changing direction still works.
+- Your own rocket blasts now hurt you at half strength when you are close.
+- Build: C++ is compiled with `-ffp-contract=off` (GCC/Clang) so the fallbacks never fuse a multiply and an add, which the NASM kernels cannot do.
 
 ### Bug Fixes
 
